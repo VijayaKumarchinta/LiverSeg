@@ -36,7 +36,7 @@ const cnnStats = [
             <div class="p-4 border border-slate-200 rounded-xl bg-slate-50 flex gap-3">
               <Brain class="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Attention Gating Systems</h4>
+                <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Attention Gating Modules</h4>
                 <p class="text-xs text-slate-500 mt-1 leading-relaxed">
                   Suppress background regions like the kidneys and spleen, directing the network to focus on liver parenchyma edges.
                 </p>

@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useAppState } from '../composables/useAppState'
 import {
   LayoutDashboard, Upload, ScanLine, FileText, Users,
-  Brain, Settings, Shield, LogOut, ChevronLeft, ChevronRight,
+  Brain, Settings, LogOut, ChevronLeft, ChevronRight,
   Bell, Activity, Server, Search, Cpu, ChevronDown,
   AlertCircle, CheckCircle2, Wifi
 } from 'lucide-vue-next'
@@ -41,7 +41,7 @@ const menuItems = [
   { name: 'Reports',      path: '/app/reports',    icon: FileText },
   { name: 'Research',     path: '/app/research',   icon: Brain },
   { name: 'Settings',     path: '/app/settings',   icon: Settings },
-  { name: 'Admin',        path: '/app/admin',      icon: Shield },
+  { name: 'Admin',        path: '/app/admin',      icon: Server },
 ]
 
 const filteredMenuItems = computed(() => {
@@ -254,7 +254,7 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns))
                 class="absolute right-0 top-full mt-2 w-72 frosted-glass-panel p-3 z-50 shadow-xl"
               >
                 <div class="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200/50">
-                  <span class="text-xs font-bold text-slate-800">System Alerts</span>
+                  <span class="text-xs font-bold text-slate-800">Platform Alerts</span>
                   <span class="text-[9px] bg-rose-50 text-rose-600 font-bold px-1.5 py-0.5 rounded-full border border-rose-100">{{ unreadCount }} New</span>
                 </div>
                 <div class="space-y-1.5">

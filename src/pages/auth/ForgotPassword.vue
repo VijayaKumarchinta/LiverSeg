@@ -57,7 +57,7 @@ const handleReset = async () => {
             <Activity class="w-5 h-5" />
           </div>
           <span class="text-lg font-bold text-slate-900 tracking-tight">
-            LiverSeg<span class="text-teal-650 bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">AI</span>
+            LiverSeg<span class="bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">AI</span>
           </span>
         </router-link>
         <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Reset Password</h2>

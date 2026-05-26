@@ -17,8 +17,6 @@ import {
   Play,
   RotateCcw,
   Check,
-  Shield,
-  ShieldAlert,
   Server,
   Database,
   LineChart,
@@ -382,7 +380,7 @@ const handleAssign = () => {
 
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">System Network Load</div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Platform Network Load</div>
             <div class="text-xl font-extrabold text-slate-900">421.5 Mbps</div>
             <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
               <CheckCircle class="w-3 h-3" /> PACS routing stable
@@ -406,12 +404,12 @@ const handleAssign = () => {
 
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Security Audit status</div>
-            <div class="text-xl font-extrabold text-slate-900">100% Secure</div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compliance Audit status</div>
+            <div class="text-xl font-extrabold text-slate-900">100% Verified</div>
             <div class="text-[10px] text-slate-500 font-bold">HIPAA Compliant trace log</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-            <Shield class="w-4.5 h-4.5" />
+            <CheckCircle class="w-4.5 h-4.5" />
           </div>
         </div>
       </div>
@@ -425,7 +423,7 @@ const handleAssign = () => {
           <!-- Users table -->
           <div class="frosted-glass-panel overflow-hidden !p-0">
             <div class="px-5 py-3 border-b border-slate-200/50 bg-white/40">
-              <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase">Hospital User Access Management</h3>
+              <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase">Hospital User Management</h3>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse text-xs">
@@ -473,7 +471,7 @@ const handleAssign = () => {
         <!-- Right: Server health checks -->
         <div class="lg:col-span-4 space-y-6">
           <div class="frosted-glass-panel p-5 space-y-4">
-            <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">PACS &amp; System Health</h3>
+            <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">PACS &amp; Service Health</h3>
             
             <div class="space-y-3.5">
               <div class="flex justify-between items-center text-xs">
@@ -481,22 +479,22 @@ const handleAssign = () => {
                 <span class="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[9px] border border-emerald-100">ONLINE</span>
               </div>
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-655">AI Inference Server</span>
+                <span class="font-bold text-slate-600">AI Inference Server</span>
                 <span class="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[9px] border border-emerald-100">ONLINE</span>
               </div>
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-655">PostgreSQL Database</span>
+                <span class="font-bold text-slate-600">PostgreSQL Database</span>
                 <span class="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[9px] border border-emerald-100">STABLE</span>
               </div>
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-655">Storage Allocation</span>
+                <span class="font-bold text-slate-600">Storage Allocation</span>
                 <span class="font-mono font-bold text-slate-700">1.2 TB / 4.0 TB free</span>
               </div>
             </div>
 
             <!-- Health visual tracker representation -->
             <div class="pt-4 border-t border-slate-200/50 text-center">
-              <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Host Node System Latency</div>
+              <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Host Node Latency</div>
               <div class="flex gap-1 justify-center items-end h-8">
                 <div class="w-2.5 bg-teal-500 rounded-t h-3"></div>
                 <div class="w-2.5 bg-teal-500 rounded-t h-4"></div>
@@ -822,7 +820,7 @@ const handleAssign = () => {
             <div class="text-[10px] text-slate-500 font-bold">CT abdomen reconstruction</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
-            <Shield class="w-4.5 h-4.5" />
+            <CheckCircle class="w-4.5 h-4.5" />
           </div>
         </div>
       </div>

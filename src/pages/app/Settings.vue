@@ -1,13 +1,25 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAppState } from '../../composables/useAppState'
 import { useAuthStore } from '../../stores/auth'
-import { Save, Server, Wifi, Shield, Bell, User, Check, RefreshCw, Eye, EyeOff } from 'lucide-vue-next'
+import { Save, Server, Wifi, Info, Bell, User, Check, RefreshCw, Eye, EyeOff } from 'lucide-vue-next'
 
-const { pacsConfig, updatePacs } = useAppState()
+const { pacsConfig, fetchPacsConfig, updatePacs } = useAppState()
 const auth = useAuthStore()
 
-const pacsForm = reactive({ ...pacsConfig })
+const pacsForm = reactive({
+  aeTitle: '',
+  port: 104,
+  ipAddress: '',
+  compression: 'No Compression',
+  autoRoute: false,
+  validateOnReceive: false
+})
+
+onMounted(async () => {
+  await fetchPacsConfig()
+  Object.assign(pacsForm, pacsConfig.value)
+})
 const saved = ref(false)
 const savePacs = () => {
   updatePacs({ ...pacsForm })
@@ -18,27 +30,17 @@ const savePacs = () => {
 const profileForm = reactive({
   name: auth.userName,
   username: auth.userUsername,
-  department: auth.user?.department || 'Radiology',
-  hospital: auth.user?.hospital || 'St. Luke Medical Center',
 })
 
 const notifSettings = reactive({
   segmentationComplete: true,
   reportSigned: true,
-  systemAlerts: true,
+  platformAlerts: true,
   pacsSync: false,
   weeklyDigest: true,
 })
 
-const securityInfo = [
-  { label: 'Session Timeout', value: '4 hours' },
-  { label: 'Last Login', value: '2026-05-25 10:14' },
-  { label: 'Auth Method', value: 'JWT Bearer Token' },
-  { label: 'Data Encryption', value: 'AES-256-GCM' },
-  { label: 'HIPAA Mode', value: 'Enabled' },
-]
-
-const systemInfo = [
+const platformInfo = [
   { label: 'Platform Version', value: 'LiversegAI v2.5.0' },
   { label: 'AI Engine', value: 'MONAI v1.4.2' },
   { label: 'Model Weights', value: 'attn_unet_liver_v1.4.pt' },
@@ -54,7 +56,7 @@ const systemInfo = [
     <div class="frosted-glass-panel p-4">
       <div class="section-title">Configuration</div>
       <h2 class="text-sm font-black text-slate-800 mt-0.5">Workstation Settings</h2>
-      <p class="text-[10px] text-slate-500 font-medium mt-0.5">PACS configuration, user preferences, notifications, and system info</p>
+      <p class="text-[10px] text-slate-500 font-medium mt-0.5">PACS configuration, user preferences, notifications, and platform info</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -136,7 +138,7 @@ const systemInfo = [
         </div>
 
         <div class="space-y-3">
-          <div v-for="(val, label) in { 'Full Name': profileForm.name, 'Username': profileForm.username, 'Department': profileForm.department, 'Hospital': profileForm.hospital }" :key="label">
+          <div v-for="(val, label) in { 'Full Name': profileForm.name, 'Username': profileForm.username }" :key="label">
             <label class="section-title block mb-1.5">{{ label }}</label>
             <input :value="val" type="text" class="clinical-input w-full px-3 py-2 text-xs" readonly />
           </div>
@@ -157,7 +159,7 @@ const systemInfo = [
           <label v-for="(key, label) in {
             'Segmentation complete': 'segmentationComplete',
             'Report signed': 'reportSigned',
-            'System alerts': 'systemAlerts',
+            'Platform alerts': 'platformAlerts',
             'PACS sync events': 'pacsSync',
             'Weekly digest email': 'weeklyDigest'
           }" :key="key" class="flex items-center justify-between py-2.5 border-b border-slate-100/60 last:border-0 cursor-pointer">
@@ -172,30 +174,20 @@ const systemInfo = [
         </div>
       </div>
 
-      <!-- System Info -->
+      <!-- Platform Info -->
       <div class="frosted-glass-panel p-5 space-y-4">
         <div class="flex items-center gap-2 pb-3 border-b border-slate-200/50">
-          <Shield class="w-4 h-4 text-purple-600" />
+          <Info class="w-4 h-4 text-purple-600" />
           <div>
-            <div class="section-title">Security & System</div>
+            <div class="section-title">Platform</div>
             <div class="text-xs font-bold text-slate-800">Platform Information</div>
           </div>
         </div>
 
         <div>
-          <div class="section-title mb-2">Security</div>
+          <div class="section-title mb-2">Platform Details</div>
           <div class="space-y-1.5">
-            <div v-for="s in securityInfo" :key="s.label" class="flex justify-between py-1.5 border-b border-slate-100/50 last:border-0 text-[10px]">
-              <span class="text-slate-500 font-medium">{{ s.label }}</span>
-              <span class="font-bold text-slate-800">{{ s.value }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="section-title mb-2">Platform</div>
-          <div class="space-y-1.5">
-            <div v-for="s in systemInfo" :key="s.label" class="flex justify-between py-1.5 border-b border-slate-100/50 last:border-0 text-[10px]">
+            <div v-for="s in platformInfo" :key="s.label" class="flex justify-between py-1.5 border-b border-slate-100/50 last:border-0 text-[10px]">
               <span class="text-slate-500 font-medium">{{ s.label }}</span>
               <span class="font-bold text-slate-800">{{ s.value }}</span>
             </div>
@@ -204,7 +196,7 @@ const systemInfo = [
 
         <div class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-teal-50 border border-teal-100">
           <div class="w-2 h-2 rounded-full bg-teal-500"></div>
-          <span class="text-[9px] font-bold text-teal-700">All systems operational · HIPAA compliant</span>
+          <span class="text-[9px] font-bold text-teal-700">All services operational · HIPAA compliant</span>
         </div>
       </div>
 

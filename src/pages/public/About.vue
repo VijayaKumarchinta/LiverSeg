@@ -15,7 +15,7 @@ import { ShieldCheck, Scale, Globe } from 'lucide-vue-next'
           About LiverSeg AI
         </h1>
         <p class="text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
-          Developing state-of-the-art medical segmentation models while adhering to strict privacy, security, and quality benchmarks.
+          Developing state-of-the-art medical segmentation models while adhering to strict privacy and quality benchmarks.
         </p>
       </div>
 

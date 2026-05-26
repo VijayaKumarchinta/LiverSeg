@@ -1,5 +1,5 @@
 <script setup>
-import { Activity, ShieldCheck, Mail, MapPin, Phone } from 'lucide-vue-next'
+import { Activity, CheckCircle } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -11,7 +11,7 @@ import { Activity, ShieldCheck, Mail, MapPin, Phone } from 'lucide-vue-next'
       <div class="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 pb-10 border-b border-slate-200">
         
         <!-- Column 1: Info and Badges -->
-        <div class="md:col-span-6 space-y-4">
+        <div class="md:col-span-8 space-y-4">
           <div class="flex items-center gap-2.5">
             <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-tr from-teal-500 to-sky-600 text-white">
               <Activity class="w-5 h-5" />
@@ -25,39 +25,20 @@ import { Activity, ShieldCheck, Mail, MapPin, Phone } from 'lucide-vue-next'
             Enterprise-grade deep learning solution for automated 3D liver volumetry and lesion boundary outline. Streamlining diagnostic workflows, reducing variability, and assisting clinical transplant evaluations.
           </p>
 
-          <div class="flex items-center gap-2 text-[10px] text-slate-655 text-slate-600 font-semibold bg-white border border-slate-200 px-3 py-1.5 rounded-lg w-max shadow-sm">
-            <ShieldCheck class="w-4 h-4 text-teal-600" />
-            <span>HIPAA Compliant &amp; GDPR Data Security Certified</span>
+          <div class="flex items-center gap-2 text-[10px] text-slate-600 font-semibold bg-white border border-slate-200 px-3 py-1.5 rounded-lg w-max shadow-sm">
+            <CheckCircle class="w-4 h-4 text-teal-600" />
+            <span>HIPAA Compliant &amp; GDPR Data Protection Certified</span>
           </div>
         </div>
 
         <!-- Column 2: Section Links -->
-        <div class="md:col-span-3 space-y-4">
+        <div class="md:col-span-4 space-y-4">
           <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900">Platform Portal</h4>
           <ul class="space-y-2">
             <li><router-link to="/" class="text-xs text-slate-500 hover:text-teal-600 transition-colors">Home</router-link></li>
             <li><router-link to="/platform" class="text-xs text-slate-500 hover:text-teal-600 transition-colors">SaaS Platform</router-link></li>
             <li><router-link to="/research" class="text-xs text-slate-500 hover:text-teal-600 transition-colors">Research &amp; CNN</router-link></li>
             <li><router-link to="/about" class="text-xs text-slate-500 hover:text-teal-600 transition-colors">Safety &amp; About</router-link></li>
-          </ul>
-        </div>
-
-        <!-- Column 3: Contact Details -->
-        <div class="md:col-span-3 space-y-4">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900">Institutional Contact</h4>
-          <ul class="space-y-2 text-xs text-slate-500">
-            <li class="flex items-center gap-2">
-              <Mail class="w-3.5 h-3.5 text-slate-400" />
-              <span>institutional-support@liverseg.ai</span>
-            </li>
-            <li class="flex items-center gap-2">
-              <Phone class="w-3.5 h-3.5 text-slate-400" />
-              <span>+1 (800) 555-LIVER</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <MapPin class="w-3.5 h-3.5 text-slate-400 mt-0.5" />
-              <span>Medical Systems Division<br />Bio-Innovation Hub, Suite 305</span>
-            </li>
           </ul>
         </div>
       </div>

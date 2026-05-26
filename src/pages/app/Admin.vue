@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { 
-  Users, Server, Shield, Activity,
-  CheckCircle, ShieldAlert
+  Users, Server, Activity, CheckCircle
 } from 'lucide-vue-next'
 import api from '../../api'
 
@@ -11,32 +10,31 @@ const adminLogs = ref([])
 
 onMounted(async () => {
   try {
-    const [usersRes, logsRes] = await Promise.all([
-      api.get('/users/'),
-      api.get('/audit/')
-    ])
+    const usersRes = await api.get('/users/')
 
     if (usersRes.data) {
       adminUsers.value = usersRes.data.map(u => ({
         id: u.id,
         name: `${u.first_name} ${u.last_name}`.trim() || u.username,
         role: u.role,
-        dept: u.department,
         status: u.status === 'active' ? 'Active' : 'Inactive'
       }))
-    }
 
-    if (logsRes.data) {
-      adminLogs.value = logsRes.data.map(log => {
-        const d = new Date(log.time)
-        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        return {
-          time: timeStr,
-          user: log.user,
-          action: log.action,
-          status: 'SUCCESS'
+      // Aggregate activities from all users
+      const allLogs = []
+      usersRes.data.forEach(u => {
+        if (u.activities && Array.isArray(u.activities)) {
+          u.activities.forEach(log => {
+            allLogs.push({
+              time: log.time,
+              user: `${u.first_name} ${u.last_name}`.trim() || u.username,
+              action: log.action + (log.details ? ` (${log.details})` : ''),
+              status: log.type === 'success' ? 'SUCCESS' : 'INFO'
+            })
+          })
         }
       })
+      adminLogs.value = allLogs
     }
   } catch (error) {
     console.error('Error fetching admin data:', error)
@@ -53,7 +51,7 @@ onMounted(async () => {
         <div class="space-y-1">
           <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Total Users Active</div>
           <div class="text-xl font-extrabold text-slate-900">14 Doctors</div>
-          <div class="text-[10px] text-slate-500 font-bold">4 Departments Connected</div>
+          <div class="text-[10px] text-slate-500 font-bold">5 Roles Configured</div>
         </div>
         <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
           <Users class="w-4.5 h-4.5" />
@@ -62,7 +60,7 @@ onMounted(async () => {
 
       <div class="frosted-glass-panel p-4 flex items-center justify-between">
         <div class="space-y-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">System Network Load</div>
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Platform Network Load</div>
           <div class="text-xl font-extrabold text-slate-900">421.5 Mbps</div>
           <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
             <CheckCircle class="w-3 h-3" /> PACS routing stable
@@ -86,12 +84,12 @@ onMounted(async () => {
 
       <div class="frosted-glass-panel p-4 flex items-center justify-between">
         <div class="space-y-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Security Audit status</div>
-          <div class="text-xl font-extrabold text-slate-900">100% Secure</div>
+          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compliance Audit status</div>
+          <div class="text-xl font-extrabold text-slate-900">100% Verified</div>
           <div class="text-[10px] text-slate-500 font-bold">HIPAA Compliant trace log</div>
         </div>
         <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-          <Shield class="w-4.5 h-4.5" />
+          <CheckCircle class="w-4.5 h-4.5" />
         </div>
       </div>
     </div>
@@ -113,7 +111,6 @@ onMounted(async () => {
                 <tr class="bg-slate-50/50 border-b border-slate-200/50 text-slate-500 font-bold">
                   <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">User Account</th>
                   <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Role Assigned</th>
-                  <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Active Department</th>
                   <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
@@ -121,7 +118,6 @@ onMounted(async () => {
                 <tr v-for="user in adminUsers" :key="user.id" class="hover:bg-white/40 transition-colors">
                   <td class="px-5 py-3 font-bold text-slate-800">{{ user.name }}</td>
                   <td class="px-5 py-3 font-mono text-[10px] text-slate-500 font-bold">{{ user.role }}</td>
-                  <td class="px-5 py-3 text-slate-600">{{ user.dept }}</td>
                   <td class="px-5 py-3">
                     <span :class="user.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'" class="px-2 py-0.5 rounded text-[9px] font-bold border">
                       {{ user.status }}
@@ -153,7 +149,7 @@ onMounted(async () => {
       <!-- Right: Server health checks -->
       <div class="lg:col-span-4 space-y-6">
         <div class="frosted-glass-panel p-5 space-y-4">
-          <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">PACS &amp; System Health</h3>
+          <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">PACS &amp; Service Health</h3>
           
           <div class="space-y-3.5">
             <div class="flex justify-between items-center text-xs">
@@ -176,7 +172,7 @@ onMounted(async () => {
 
           <!-- Health visual tracker representation -->
           <div class="pt-4 border-t border-slate-200/50 text-center">
-            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Host Node System Latency</div>
+            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Host Node Latency</div>
             <div class="flex gap-1 justify-center items-end h-8">
               <div class="w-2.5 bg-purple-400 rounded-t h-3"></div>
               <div class="w-2.5 bg-purple-400 rounded-t h-4"></div>

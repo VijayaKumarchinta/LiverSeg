@@ -22,7 +22,7 @@ const stats = [
         >
           <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-clinicalCyan/10 border border-clinicalCyan/30 text-clinicalCyan text-xs font-semibold uppercase tracking-wider">
             <span class="w-2 h-2 rounded-full bg-clinicalCyan animate-pulse"></span>
-            Clinical Decision Support System
+            Clinical Decision Support Platform
           </div>
           
           <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-clinicalNavy leading-[1.1]">

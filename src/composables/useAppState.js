@@ -10,6 +10,43 @@ const inferenceProgress = ref(0)
 const inferenceStage = ref('Initializing...')
 const uploadQueue = ref([])
 
+const pacsConfig = ref({
+  aeTitle: 'LIVERSEG_AI_AE',
+  port: 104,
+  ipAddress: '192.168.10.45',
+  compression: 'Lossless JPEG-LS',
+  autoRoute: true,
+  validateOnReceive: true
+})
+
+const fetchPacsConfig = async () => {
+  try {
+    const res = await api.get('/users/me/')
+    if (res.data && res.data.pacs_config) {
+      pacsConfig.value = res.data.pacs_config
+    }
+  } catch (error) {
+    console.error('Error fetching PACS config:', error)
+  }
+}
+
+const updatePacs = async (newConfig) => {
+  try {
+    await api.patch('/users/me/', { pacs_config: newConfig })
+    pacsConfig.value = { ...pacsConfig.value, ...newConfig }
+  } catch (error) {
+    console.error('Error updating PACS config:', error)
+  }
+}
+
+const saveActivities = async () => {
+  try {
+    await api.patch('/users/me/', { activities: activities.value })
+  } catch (error) {
+    console.error('Error saving activities:', error)
+  }
+}
+
 const mapSliceToCamelCase = (slice) => {
   if (!slice) return slice
   return {
@@ -54,9 +91,9 @@ export function useAppState() {
 
   const fetchActivities = async () => {
     try {
-      const res = await api.get('/activities/')
-      if (res.data) {
-        activities.value = res.data
+      const res = await api.get('/users/me/')
+      if (res.data && res.data.activities) {
+        activities.value = res.data.activities
       }
     } catch (error) {
       console.error('Error fetching activities:', error)
@@ -76,6 +113,9 @@ export function useAppState() {
     inferenceProgress.value = 0
     inferenceStage.value = 'Loading model...'
     patients.value[pIndex].status = 'Analyzing'
+    
+    // Persist analyzing status to DB
+    api.patch(`/patients/${id}/`, { status: 'Analyzing' }).catch(err => console.error(err))
 
     let progress = 0
     const interval = setInterval(() => {
@@ -94,6 +134,13 @@ export function useAppState() {
           isInferenceRunning.value = false
           patients.value[pIndex].status = 'Completed'
           patients.value[pIndex].metrics = { dice: '94.8%', volume: '1520 cc' }
+          
+          // Persist completed status & metrics to DB
+          api.patch(`/patients/${id}/`, { 
+            status: 'Completed',
+            metrics: { dice: '94.8%', volume: '1520 cc' }
+          }).catch(err => console.error(err))
+
           activities.value.unshift({
             id: Date.now(),
             type: 'success',
@@ -101,6 +148,7 @@ export function useAppState() {
             details: `For case ${patients.value[pIndex].id}`,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           })
+          saveActivities()
         }, 800)
       }
     }, 500)
@@ -119,6 +167,7 @@ export function useAppState() {
       if (progress === 100) {
         clearInterval(interval)
         uploadQueue.value[qIndex].status = 'completed'
+        
         activities.value.unshift({
           id: Date.now(),
           type: 'success',
@@ -126,22 +175,40 @@ export function useAppState() {
           details: filename,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         })
+        saveActivities()
         
-        // Add to patients list
+        // Add to patients list and persist in DB
         const newId = `PT-${Math.floor(Math.random() * 9000) + 1000}-X`
-        patients.value.unshift({
+        const newPatient = {
           id: newId,
           name: 'Anonymous Patient',
           gender: 'Unknown',
           age: 0,
+          dob: '2026-01-01',
           modality: type === 'dicom' ? 'CT' : 'MRI',
-          scanDate: new Date().toISOString().split('T')[0],
           status: 'Ready',
-          hasLesions: false,
-          lesionVolume: '—',
+          has_lesions: false,
+          lesion_volume: '—',
           metrics: { dice: '—', volume: '—' },
-          slices: Array(20).fill(0).map(() => ({ liverX: 0, liverY: 0, lesionSize: 0 }))
-        })
+          slices: Array(20).fill(0).map((_, idx) => ({
+            slice_index: idx,
+            liver_size: 0,
+            liver_x: 0,
+            liver_y: 0,
+            lesion_size: 0,
+            lesion_x: 0,
+            lesion_y: 0
+          }))
+        }
+
+        api.post('/patients/', newPatient).then(res => {
+          if (res.data) {
+            patients.value.unshift(mapPatientToCamelCase(res.data))
+            if (!activePatientId.value) {
+              activePatientId.value = newId
+            }
+          }
+        }).catch(err => console.error('Error saving patient to backend:', err))
       }
     }, 400)
   }
@@ -158,6 +225,9 @@ export function useAppState() {
     inferenceProgress,
     inferenceStage,
     uploadQueue,
-    simulateUpload
+    simulateUpload,
+    pacsConfig,
+    fetchPacsConfig,
+    updatePacs
   }
 }

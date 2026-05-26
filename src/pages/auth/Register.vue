@@ -64,10 +64,6 @@ const handleRegister = async () => {
             <label class="section-title block mb-1.5">Username *</label>
             <input v-model="username" type="text" placeholder="dr_smith" class="clinical-input w-full px-3.5 py-2.5 text-sm" />
           </div>
-          <div class="col-span-2">
-            <label class="section-title block mb-1.5">Hospital / Institution</label>
-            <input v-model="hospital" type="text" placeholder="St. Luke Medical Center" class="clinical-input w-full px-3.5 py-2.5 text-sm" />
-          </div>
           <div>
             <label class="section-title block mb-1.5">Clinical Role</label>
             <select v-model="role" class="clinical-input w-full px-3 py-2.5 text-sm capitalize">

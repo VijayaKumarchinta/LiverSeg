@@ -1,5 +1,5 @@
 <script setup>
-import { Mail, Phone, MapPin, Send } from 'lucide-vue-next'
+import { Send } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -27,21 +27,6 @@ import { Mail, Phone, MapPin, Send } from 'lucide-vue-next'
           <p class="text-xs text-slate-500 leading-relaxed">
             We provide remote installation packages, custom PACS router scripting, and standard DICOM mapping checklists.
           </p>
-
-          <div class="space-y-4">
-            <div class="flex items-center gap-3 text-xs">
-              <Mail class="w-4 h-4 text-teal-600" />
-              <span class="text-slate-655 text-slate-600">institutional-support@liverseg.ai</span>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-              <Phone class="w-4 h-4 text-teal-600" />
-              <span class="text-slate-655 text-slate-600">+1 (800) 555-LIVER</span>
-            </div>
-            <div class="flex items-start gap-3 text-xs">
-              <MapPin class="w-4 h-4 text-teal-600 mt-0.5" />
-              <span class="text-slate-655 text-slate-600">Medical Systems Division<br />Bio-Innovation Hub, Suite 305</span>
-            </div>
-          </div>
         </div>
 
         <!-- Form -->

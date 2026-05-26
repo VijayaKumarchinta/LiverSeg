@@ -2,14 +2,21 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Patient, Slice, ActivityLog, PacsConfig, AuditLog
-from .serializers import UserSerializer, PatientSerializer, SliceSerializer, ActivityLogSerializer, PacsConfigSerializer, AuditLogSerializer
+from .models import User, Patient
+from .serializers import UserSerializer, PatientSerializer
 from django.contrib.auth import authenticate
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=['get', 'put', 'patch'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def register(self, request):
@@ -20,9 +27,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 password=data.get('password'),
                 first_name=data.get('name', '').split(' ')[0],
                 last_name=' '.join(data.get('name', '').split(' ')[1:]),
-                role=data.get('role', 'radiologist'),
-                hospital=data.get('hospital', 'St. Luke Medical Center'),
-                department=data.get('department', 'Radiology')
+                role=data.get('role', 'radiologist')
             )
             refresh = RefreshToken.for_user(user)
             return Response({
@@ -71,24 +76,7 @@ class UserViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-
-
 class PatientViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all()
     serializer_class = PatientSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-class ActivityLogViewSet(viewsets.ModelViewSet):
-    queryset = ActivityLog.objects.all().order_by('-id')
-    serializer_class = ActivityLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-class PacsConfigViewSet(viewsets.ModelViewSet):
-    queryset = PacsConfig.objects.all()
-    serializer_class = PacsConfigSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-class AuditLogViewSet(viewsets.ModelViewSet):
-    queryset = AuditLog.objects.all().order_by('-time')
-    serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAuthenticated]

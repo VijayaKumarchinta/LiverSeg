@@ -18,7 +18,7 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 
 # Frontend Environment Variables
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:8000/api
 ```
 
 ---
