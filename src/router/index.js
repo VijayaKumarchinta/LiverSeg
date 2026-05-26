@@ -1,0 +1,82 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+// Auth layouts
+import Login         from '../pages/auth/Login.vue'
+import Register      from '../pages/auth/Register.vue'
+import ForgotPassword from '../pages/auth/ForgotPassword.vue'
+
+// Dashboard layout
+import DashboardLayout from '../layouts/DashboardLayout.vue'
+
+// App pages
+import Dashboard   from '../pages/app/Dashboard.vue'
+import Upload      from '../pages/app/Upload.vue'
+import Analysis    from '../pages/app/Analysis.vue'
+import Reports     from '../pages/app/Reports.vue'
+import Patients    from '../pages/app/Patients.vue'
+import ResearchApp from '../pages/app/ResearchApp.vue'
+import Settings    from '../pages/app/Settings.vue'
+import Admin       from '../pages/app/Admin.vue'
+
+const routes = [
+  { path: '/', redirect: '/app' },
+
+  // Public auth routes
+  { path: '/login',           name: 'login',           component: Login,          meta: { public: true } },
+  { path: '/register',        name: 'register',        component: Register,       meta: { public: true } },
+  { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword, meta: { public: true } },
+
+  // Protected app routes
+  {
+    path: '/app',
+    component: DashboardLayout,
+    meta: { requiresAuth: true },
+    children: [
+      { path: '',         name: 'dashboard',    component: Dashboard,   meta: { title: 'Clinical Dashboard' } },
+      { path: 'upload',   name: 'upload',       component: Upload,      meta: { title: 'Upload Scan',       roles: ['radiologist', 'technician'] } },
+      { path: 'analysis', name: 'analysis',     component: Analysis,    meta: { title: 'AI Analysis',       roles: ['radiologist'] } },
+      { path: 'reports',  name: 'reports',      component: Reports,     meta: { title: 'Reports' } },
+      { path: 'patients', name: 'patients',     component: Patients,    meta: { title: 'Patients' } },
+      { path: 'research', name: 'research-app', component: ResearchApp, meta: { title: 'Research & AI',     roles: ['researcher'] } },
+      { path: 'settings', name: 'settings',     component: Settings,    meta: { title: 'Settings' } },
+      { path: 'admin',    name: 'admin',         component: Admin,       meta: { title: 'Admin Panel',       roles: ['admin'] } },
+    ]
+  },
+
+  { path: '/:pathMatch(.*)*', redirect: '/' }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    return savedPosition || { top: 0 }
+  }
+})
+
+// Navigation guard — role-based access control
+router.beforeEach((to, from, next) => {
+  const auth = useAuthStore()
+
+  // Redirect authenticated users away from auth pages
+  if (to.meta.public && auth.isAuthenticated) {
+    return next('/app')
+  }
+
+  // Require auth for protected routes
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return next('/login')
+  }
+
+  // Role-based route restriction
+  if (to.meta.roles && auth.isAuthenticated) {
+    if (!to.meta.roles.includes(auth.userRole)) {
+      return next('/app') // redirect to dashboard if role is not allowed
+    }
+  }
+
+  next()
+})
+
+export default router
