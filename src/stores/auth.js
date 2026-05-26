@@ -30,6 +30,31 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  async function register(name, username, hospital, role, password) {
+    try {
+      const res = await fetch('http://localhost:8000/api/users/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, username, hospital, role, password })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        token.value = data.token
+        user.value = data.user
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        return true
+      } else {
+        const errorData = await res.json()
+        console.error('Registration failed:', errorData)
+      }
+    } catch (err) {
+      console.error('Registration error:', err)
+    }
+    return false
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -43,6 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userRole,
     login,
+    register,
     logout
   }
 })
