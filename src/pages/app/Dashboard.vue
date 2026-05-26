@@ -130,7 +130,7 @@ const handleAssign = () => {
             <div class="text-xl font-extrabold text-slate-900">{{ totalScans }} Cases</div>
             <div class="text-[10px] text-slate-500 font-bold">{{ completedScans }} Completed &middot; {{ activeQueue }} Pending</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-650 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Users class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -144,7 +144,7 @@ const handleAssign = () => {
               <span>Exceeds QA threshold</span>
             </div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-650 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Activity class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -155,7 +155,7 @@ const handleAssign = () => {
             <div class="text-xl font-extrabold text-slate-900">{{ activeQueue }} Running</div>
             <div class="text-[10px] text-slate-500 font-bold">Ingested from local PACS node</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-655 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Clock class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -166,7 +166,7 @@ const handleAssign = () => {
             <div class="text-xl font-extrabold text-slate-900">{{ completedScans }} DICOM SR</div>
             <div class="text-[10px] text-slate-500 font-bold">100% digital trace compliance</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-655 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <FileText class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -209,7 +209,7 @@ const handleAssign = () => {
                       ]"
                     >
                       <td class="px-5 py-3">
-                        <div class="font-bold text-slate-850">{{ p.name }}</div>
+                        <div class="font-bold text-slate-800">{{ p.name }}</div>
                         <div class="text-[10px] text-slate-400 font-mono font-bold">{{ p.id }} &middot; {{ p.gender.substring(0,1) }}/{{ p.age }}y</div>
                       </td>
                       <td class="px-5 py-3 text-slate-600 font-bold">{{ p.modality }}</td>
@@ -258,7 +258,7 @@ const handleAssign = () => {
           <div v-if="activePatient" class="frosted-glass-panel p-4 flex flex-col justify-between space-y-4">
             <div class="border-b border-slate-200/50 pb-2 flex items-center justify-between">
               <div class="space-y-0.5">
-                <span class="text-[9px] font-bold text-teal-650 text-teal-600 uppercase tracking-widest block">pacs view monitor</span>
+                <span class="text-[9px] font-bold text-teal-600 uppercase tracking-widest block">pacs view monitor</span>
                 <h3 class="font-extrabold text-slate-900 text-sm tracking-tight leading-tight">Case: {{ activePatient.name }}</h3>
               </div>
               <span class="text-[9px] font-mono bg-white/70 border border-slate-200/60 text-slate-500 px-2 py-0.5 rounded font-bold">{{ activePatient.id }}</span>
@@ -268,8 +268,8 @@ const handleAssign = () => {
             <div class="bg-black/95 rounded-xl border border-slate-800 p-3 relative flex items-center justify-center aspect-square select-none">
               <div class="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:12px_12px] pointer-events-none"></div>
               
-              <div class="absolute w-[92%] h-[92%] rounded-full border border-dashed border-slate-850/40 pointer-events-none flex items-center justify-center">
-                <div class="w-[85%] h-[85%] rounded-full border border-slate-850/20"></div>
+              <div class="absolute w-[92%] h-[92%] rounded-full border border-dashed border-slate-800/40 pointer-events-none flex items-center justify-center">
+                <div class="w-[85%] h-[85%] rounded-full border border-slate-800/20"></div>
               </div>
 
               <!-- Orientation tags -->
@@ -339,7 +339,7 @@ const handleAssign = () => {
                 </div>
                 <div class="bg-slate-50/80 border border-slate-200/50 p-2 rounded-lg">
                   <div class="text-[9px] text-slate-400 uppercase font-bold">Lesion Vol</div>
-                  <div class="text-sm font-extrabold mt-0.5" :class="activePatient.hasLesions ? 'text-rose-600' : 'text-slate-850'">{{ activePatient.lesionVolume !== '—' ? activePatient.lesionVolume.replace(' cc', '') : '—' }} <span v-if="activePatient.lesionVolume !== '—' && activePatient.lesionVolume !== '0 cc'" class="text-[9px] text-slate-400 font-bold">cc</span></div>
+                  <div class="text-sm font-extrabold mt-0.5" :class="activePatient.hasLesions ? 'text-rose-600' : 'text-slate-800'">{{ activePatient.lesionVolume !== '—' ? activePatient.lesionVolume.replace(' cc', '') : '—' }} <span v-if="activePatient.lesionVolume !== '—' && activePatient.lesionVolume !== '0 cc'" class="text-[9px] text-slate-400 font-bold">cc</span></div>
                 </div>
               </div>
 
@@ -439,9 +439,9 @@ const handleAssign = () => {
                 </thead>
                 <tbody class="divide-y divide-slate-100/50 text-slate-700 font-semibold">
                   <tr v-for="user in adminUsers" :key="user.id">
-                    <td class="px-5 py-3 font-bold text-slate-850">{{ user.name }}</td>
+                    <td class="px-5 py-3 font-bold text-slate-800">{{ user.name }}</td>
                     <td class="px-5 py-3 font-mono text-[10px] text-slate-500 font-bold">{{ user.role }}</td>
-                    <td class="px-5 py-3 text-slate-655">{{ user.dept }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ user.dept }}</td>
                     <td class="px-5 py-3">
                       <span :class="user.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'" class="px-2 py-0.5 rounded text-[9px] font-bold">
                         {{ user.status }}
@@ -477,7 +477,7 @@ const handleAssign = () => {
             
             <div class="space-y-3.5">
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-655">DICOM PACS Router</span>
+                <span class="font-bold text-slate-600 font-semibold text-slate-600">DICOM PACS Router</span>
                 <span class="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[9px] border border-emerald-100">ONLINE</span>
               </div>
               <div class="flex justify-between items-center text-xs">
@@ -597,7 +597,7 @@ const handleAssign = () => {
               </svg>
 
               <!-- Legends -->
-              <div class="flex justify-between items-center text-[9px] font-mono text-slate-550 text-slate-400">
+              <div class="flex justify-between items-center text-[9px] font-mono text-slate-400">
                 <span class="flex items-center gap-1"><span class="w-2.5 h-0.5 bg-teal-500 inline-block"></span> Validation Dice Score</span>
                 <span class="flex items-center gap-1"><span class="w-2.5 h-0.5 bg-sky-500 border-dashed border-t inline-block"></span> Focal Loss Curve</span>
                 <span>Epoch 50/50</span>
@@ -621,9 +621,9 @@ const handleAssign = () => {
                 </thead>
                 <tbody class="divide-y divide-slate-100/50 text-slate-700 font-semibold">
                   <tr v-for="cohort in datasetDistribution" :key="cohort.split">
-                    <td class="px-5 py-3 font-bold text-slate-850">{{ cohort.split }}</td>
+                    <td class="px-5 py-3 font-bold text-slate-800">{{ cohort.split }}</td>
                     <td class="px-5 py-3 font-mono font-bold">{{ cohort.cases }} subjects</td>
-                    <td class="px-5 py-3 text-teal-650 font-bold text-[10px]">{{ cohort.labels }}</td>
+                    <td class="px-5 py-3 text-teal-600 font-bold text-[10px]">{{ cohort.labels }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -736,7 +736,7 @@ const handleAssign = () => {
                     <span>SCAN DATE: {{ t.date }}</span>
                     <span class="text-rose-600">Tumor Vol: {{ t.lesion }}</span>
                   </div>
-                  <div class="text-slate-850 font-bold text-sm">Liver Parenchyma Volume: {{ t.volume }}</div>
+                  <div class="text-slate-800 font-bold text-sm">Liver Parenchyma Volume: {{ t.volume }}</div>
                   <div class="text-slate-500 font-medium text-[11px] leading-relaxed">{{ t.notes }}</div>
                 </div>
               </div>
@@ -757,7 +757,7 @@ const handleAssign = () => {
               
               <div class="pt-3 border-t border-slate-200/50 space-y-2 text-[10.5px] font-bold text-slate-700">
                 <div class="flex items-center gap-1.5 text-emerald-600"><CheckCircle class="w-4 h-4" /> Chemo response: Positive</div>
-                <div class="flex items-center gap-1.5 text-slate-655"><Clock class="w-4 h-4" /> Next scan due: June 15, 2026</div>
+                <div class="flex items-center gap-1.5 text-slate-600"><Clock class="w-4 h-4" /> Next scan due: June 15, 2026</div>
               </div>
             </div>
 

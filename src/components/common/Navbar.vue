@@ -55,7 +55,7 @@ const navLinks = [
           </div>
           <div class="flex flex-col">
             <span class="text-base font-bold tracking-tight text-slate-900 leading-none">
-              LiverSeg<span class="text-teal-650 text-teal-650 bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">AI</span>
+              LiverSeg<span class="text-teal-600 bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">AI</span>
             </span>
             <span class="text-[9px] uppercase tracking-widest font-bold text-slate-400 mt-1">Radiology Suite</span>
           </div>

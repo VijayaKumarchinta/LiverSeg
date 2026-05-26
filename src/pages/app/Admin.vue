@@ -4,23 +4,20 @@ import {
   Users, Server, Shield, Activity,
   CheckCircle, ShieldAlert
 } from 'lucide-vue-next'
+import api from '../../api'
 
 const adminUsers = ref([])
 const adminLogs = ref([])
 
 onMounted(async () => {
-  const token = localStorage.getItem('token')
-  if (!token) return
-
   try {
     const [usersRes, logsRes] = await Promise.all([
-      fetch('http://localhost:8000/api/users/', { headers: { 'Authorization': `Bearer ${token}` } }),
-      fetch('http://localhost:8000/api/audit/', { headers: { 'Authorization': `Bearer ${token}` } })
+      api.get('/users/'),
+      api.get('/audit/')
     ])
 
-    if (usersRes.ok) {
-      const usersData = await usersRes.json()
-      adminUsers.value = usersData.map(u => ({
+    if (usersRes.data) {
+      adminUsers.value = usersRes.data.map(u => ({
         id: u.id,
         name: `${u.first_name} ${u.last_name}`.trim() || u.username,
         role: u.role,
@@ -29,9 +26,8 @@ onMounted(async () => {
       }))
     }
 
-    if (logsRes.ok) {
-      const logsData = await logsRes.json()
-      adminLogs.value = logsData.map(log => {
+    if (logsRes.data) {
+      adminLogs.value = logsRes.data.map(log => {
         const d = new Date(log.time)
         const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         return {
@@ -123,7 +119,7 @@ onMounted(async () => {
               </thead>
               <tbody class="divide-y divide-slate-100/50 text-slate-700 font-semibold">
                 <tr v-for="user in adminUsers" :key="user.id" class="hover:bg-white/40 transition-colors">
-                  <td class="px-5 py-3 font-bold text-slate-850">{{ user.name }}</td>
+                  <td class="px-5 py-3 font-bold text-slate-800">{{ user.name }}</td>
                   <td class="px-5 py-3 font-mono text-[10px] text-slate-500 font-bold">{{ user.role }}</td>
                   <td class="px-5 py-3 text-slate-600">{{ user.dept }}</td>
                   <td class="px-5 py-3">

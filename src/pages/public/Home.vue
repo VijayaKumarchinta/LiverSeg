@@ -187,8 +187,8 @@ const features = [
             class="p-7 rounded-2xl frosted-glass-panel hover:border-teal-500/40 transition-all duration-300 group flex flex-col justify-between"
           >
             <div class="space-y-4">
-              <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-650 text-teal-600 flex items-center justify-center group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm">
-                <component :is="feature.icon" class="w-5.5 h-5.5" />
+              <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm">
+                <component :is="feature.icon" class="w-5 h-5" />
               </div>
               <h3 class="font-bold text-slate-900 text-base leading-snug tracking-tight">{{ feature.title }}</h3>
               <p class="text-xs text-slate-500 leading-relaxed font-semibold">{{ feature.desc }}</p>

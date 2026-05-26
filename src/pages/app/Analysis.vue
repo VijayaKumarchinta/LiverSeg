@@ -168,7 +168,7 @@ watch(inferenceStage, (newStage) => {
       <!-- Ingest Scans Box -->
       <div class="frosted-glass-panel p-4 space-y-4">
         <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 font-extrabold border-b border-slate-200/50 pb-2">
-          <UploadCloud class="w-4 h-4 text-teal-650" /> Ingest Imaging Volume
+          <UploadCloud class="w-4 h-4 text-teal-600" /> Ingest Imaging Volume
         </h4>
 
         <!-- Tiny drag & drop zone -->
@@ -244,7 +244,7 @@ watch(inferenceStage, (newStage) => {
             <select 
               :value="activePatient.id" 
               @change="selectPatient($event.target.value)"
-              class="w-full bg-white/80 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-850 focus:outline-none focus:border-teal-500"
+              class="w-full bg-white/80 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-500"
             >
               <option v-for="p in queuePatients" :key="p.id" :value="p.id">
                 {{ p.name }} ({{ p.id }})
@@ -557,7 +557,7 @@ watch(inferenceStage, (newStage) => {
               </div>
             </div>
             
-            <div class="flex-1 bg-black/60 p-3 rounded border border-slate-850 font-mono text-[9px] text-teal-400 space-y-1 overflow-y-auto leading-normal my-2">
+            <div class="flex-1 bg-black/60 p-3 rounded border border-slate-800 font-mono text-[9px] text-teal-400 space-y-1 overflow-y-auto leading-normal my-2">
               <div v-for="(log, idx) in activeConsoleLogs" :key="idx" class="truncate select-none">
                 {{ log }}
               </div>
@@ -652,7 +652,7 @@ watch(inferenceStage, (newStage) => {
       <!-- Diagnostic Analytics Metrics -->
       <div class="frosted-glass-panel p-4 space-y-4">
         <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-extrabold border-b border-slate-200/50 pb-2 flex items-center gap-1.5">
-          <BrainCircuit class="w-4 h-4 text-teal-650" /> Segmentation Analytics
+          <BrainCircuit class="w-4 h-4 text-teal-600" /> Segmentation Analytics
         </h4>
 
         <div class="grid grid-cols-2 gap-2 text-xs font-semibold">
@@ -674,7 +674,7 @@ watch(inferenceStage, (newStage) => {
           </div>
           <div class="bg-white/60 p-2 rounded border border-slate-200/50 col-span-2">
             <div class="text-[8px] text-slate-400 font-bold uppercase">Estimated Liver Volume</div>
-            <div class="text-sm font-extrabold text-slate-850 mt-0.5">{{ activePatient.metrics.volume }}</div>
+            <div class="text-sm font-extrabold text-slate-800 mt-0.5">{{ activePatient.metrics.volume }}</div>
           </div>
         </div>
 
@@ -709,7 +709,7 @@ watch(inferenceStage, (newStage) => {
           QA Workstation Validation
         </h4>
 
-        <div class="space-y-2 text-[10px] text-slate-655 text-slate-600 font-semibold">
+        <div class="space-y-2 text-[10px] text-slate-600 font-semibold">
           <label class="flex items-start gap-2 cursor-pointer select-none">
             <input v-model="chkContours" type="checkbox" class="mt-0.5 rounded text-teal-600 focus:ring-teal-500 border-slate-300" />
             <span>Anatomical margins verified across 20 slices</span>

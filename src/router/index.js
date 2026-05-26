@@ -1,13 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+// Layouts
+import AppLayout from '../layouts/AppLayout.vue'
+import DashboardLayout from '../layouts/DashboardLayout.vue'
+
+// Public marketing pages
+import Home           from '../pages/public/Home.vue'
+import About          from '../pages/public/About.vue'
+import Contact        from '../pages/public/Contact.vue'
+import Platform       from '../pages/public/Platform.vue'
+import ResearchPublic from '../pages/public/ResearchPublic.vue'
+
 // Auth layouts
 import Login         from '../pages/auth/Login.vue'
 import Register      from '../pages/auth/Register.vue'
 import ForgotPassword from '../pages/auth/ForgotPassword.vue'
-
-// Dashboard layout
-import DashboardLayout from '../layouts/DashboardLayout.vue'
 
 // App pages
 import Dashboard   from '../pages/app/Dashboard.vue'
@@ -20,12 +28,23 @@ import Settings    from '../pages/app/Settings.vue'
 import Admin       from '../pages/app/Admin.vue'
 
 const routes = [
-  { path: '/', redirect: '/app' },
+  // Public marketing pages with AppLayout navbar/footer
+  {
+    path: '/',
+    component: AppLayout,
+    children: [
+      { path: '',         name: 'home',     component: Home },
+      { path: 'about',    name: 'about',    component: About },
+      { path: 'contact',  name: 'contact',  component: Contact },
+      { path: 'platform', name: 'platform', component: Platform },
+      { path: 'research', name: 'research', component: ResearchPublic }
+    ]
+  },
 
-  // Public auth routes
-  { path: '/login',           name: 'login',           component: Login,          meta: { public: true } },
-  { path: '/register',        name: 'register',        component: Register,       meta: { public: true } },
-  { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword, meta: { public: true } },
+  // Guest-only auth routes
+  { path: '/login',           name: 'login',           component: Login,          meta: { guest: true } },
+  { path: '/register',        name: 'register',        component: Register,       meta: { guest: true } },
+  { path: '/forgot-password', name: 'forgot-password', component: ForgotPassword, meta: { guest: true } },
 
   // Protected app routes
   {
@@ -59,8 +78,8 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
 
-  // Redirect authenticated users away from auth pages
-  if (to.meta.public && auth.isAuthenticated) {
+  // Redirect authenticated users away from guest-only pages
+  if (to.meta.guest && auth.isAuthenticated) {
     return next('/app')
   }
 

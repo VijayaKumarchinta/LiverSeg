@@ -155,10 +155,10 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns))
             :to="item.path"
             :class="[
               'nav-item flex items-center gap-3 px-3 py-2.5 text-xs font-semibold transition-all duration-150 group',
-              isActive(item) ? 'nav-item-active' : 'text-slate-500 hover:text-slate-800'
+              isActive(item) ? 'nav-item-active' : 'text-slate-500 hover:text-slate-800',
+              isSidebarCollapsed ? 'tooltip tooltip-right' : ''
             ]"
             :data-tip="isSidebarCollapsed ? item.name : ''"
-            :class2="isSidebarCollapsed ? 'tooltip' : ''"
           >
             <component
               :is="item.icon"

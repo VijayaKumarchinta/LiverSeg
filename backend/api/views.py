@@ -50,6 +50,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def reset_password(self, request):
+        from django.conf import settings
+        if not settings.DEBUG:
+            return Response(
+                {'error': 'Password reset is disabled in production. Token-based flow via email is required.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         username = request.data.get('username')
         new_password = request.data.get('new_password')
         

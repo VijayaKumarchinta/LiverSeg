@@ -1,9 +1,8 @@
 import { ref, computed } from 'vue'
+import api from '../api'
 
 const patients = ref([])
-
 const activities = ref([])
-
 const activePatientId = ref(null)
 
 const isInferenceRunning = ref(false)
@@ -11,19 +10,39 @@ const inferenceProgress = ref(0)
 const inferenceStage = ref('Initializing...')
 const uploadQueue = ref([])
 
+const mapSliceToCamelCase = (slice) => {
+  if (!slice) return slice
+  return {
+    ...slice,
+    sliceIndex: slice.slice_index,
+    liverSize: slice.liver_size,
+    liverX: slice.liver_x,
+    liverY: slice.liver_y,
+    lesionSize: slice.lesion_size,
+    lesionX: slice.lesion_x,
+    lesionY: slice.lesion_y
+  }
+}
+
+const mapPatientToCamelCase = (patient) => {
+  if (!patient) return patient
+  return {
+    ...patient,
+    scanDate: patient.scan_date,
+    hasLesions: patient.has_lesions,
+    lesionVolume: patient.lesion_volume,
+    slices: patient.slices ? patient.slices.map(mapSliceToCamelCase) : []
+  }
+}
+
 export function useAppState() {
   const activePatient = computed(() => patients.value.find(p => p.id === activePatientId.value))
 
   const fetchPatients = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('http://localhost:8000/api/patients/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (res.ok) {
-        patients.value = await res.json()
+      const res = await api.get('/patients/')
+      if (res.data) {
+        patients.value = res.data.map(mapPatientToCamelCase)
         if (patients.value.length > 0 && !activePatientId.value) {
           activePatientId.value = patients.value[0].id
         }
@@ -35,14 +54,9 @@ export function useAppState() {
 
   const fetchActivities = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('http://localhost:8000/api/activities/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (res.ok) {
-        activities.value = await res.json()
+      const res = await api.get('/activities/')
+      if (res.data) {
+        activities.value = res.data
       }
     } catch (error) {
       console.error('Error fetching activities:', error)

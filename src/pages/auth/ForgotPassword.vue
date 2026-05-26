@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Activity, User, KeyRound, ArrowRight, ArrowLeft, Loader2, AlertCircle } from 'lucide-vue-next'
+import api from '../../api'
 
 const router = useRouter()
 const route = useRoute()
@@ -28,26 +29,14 @@ const handleReset = async () => {
   error.value = ''
   
   try {
-    const response = await fetch('http://localhost:8000/api/users/reset_password/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: username.value,
-        new_password: newPassword.value
-      })
+    await api.post('/users/reset_password/', {
+      username: username.value,
+      new_password: newPassword.value
     })
 
-    const data = await response.json()
-
-    if (response.ok) {
-      isSubmitted.value = true
-    } else {
-      error.value = data.error || 'Failed to reset password.'
-    }
+    isSubmitted.value = true
   } catch (err) {
-    error.value = 'Network error occurred while resetting password.'
+    error.value = err.response?.data?.error || 'Failed to reset password.'
   } finally {
     isLoading.value = false
   }
@@ -68,7 +57,7 @@ const handleReset = async () => {
             <Activity class="w-5 h-5" />
           </div>
           <span class="text-lg font-bold text-slate-900 tracking-tight">
-            LiverSeg<span class="text-teal-600">AI</span>
+            LiverSeg<span class="text-teal-650 bg-gradient-to-r from-teal-600 to-sky-600 bg-clip-text text-transparent">AI</span>
           </span>
         </router-link>
         <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Reset Password</h2>
@@ -76,9 +65,9 @@ const handleReset = async () => {
       </div>
 
       <!-- Success display -->
-      <div v-if="isSubmitted" class="p-4 bg-teal-50 border border-teal-150 border-teal-200 rounded-2xl text-center space-y-3">
-        <div class="text-xs text-teal-850 font-bold text-teal-800">Password Reset Successful</div>
-        <p class="text-[11px] text-teal-655 text-teal-650 leading-relaxed">
+      <div v-if="isSubmitted" class="p-4 bg-teal-50 border border-teal-200 rounded-2xl text-center space-y-3">
+        <div class="text-xs text-teal-800 font-bold">Password Reset Successful</div>
+        <p class="text-[11px] text-teal-600 leading-relaxed">
           Your credentials have been securely updated in the database. You can now access your workspace with the new password.
         </p>
         <router-link to="/login" class="inline-flex items-center justify-center gap-1.5 text-xs text-teal-700 hover:text-teal-900 font-semibold pt-2">
