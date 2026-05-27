@@ -117,7 +117,7 @@ const handleOpenWorkspace = (p) => {
             </div>
             <div class="col-span-2">
               <div class="section-title mb-0.5">Scan Date</div>
-              <div class="font-bold text-slate-700">{{ p.scanDate }}</div>
+              <div class="font-bold text-slate-700">{{ p.scanDate ? new Date(p.scanDate).toLocaleDateString() : '—' }}</div>
             </div>
           </div>
 

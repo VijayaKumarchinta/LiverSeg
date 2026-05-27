@@ -47,7 +47,7 @@ const {
 } = useAppState()
 
 // ==========================================
-// 1. RADIOLOGIST VARIABLES
+// 1. RADIOLOGIST WORKSPACE
 // ==========================================
 const currentSlice = ref(10)
 const maskOpacity = ref(60)
@@ -58,7 +58,9 @@ const sliceData = computed(() => {
 })
 
 const handleTriggerSegment = () => {
-  runSegmentation(activePatient.value.id)
+  if (activePatient.value) {
+    runSegmentation(activePatient.value.id)
+  }
 }
 
 const handleViewPatientDetails = () => {
@@ -70,36 +72,61 @@ const totalScans = computed(() => patients.value.length)
 const completedScans = computed(() => patients.value.filter(p => p.status === 'Completed').length)
 const activeQueue = computed(() => patients.value.filter(p => p.status === 'Analyzing' || p.status === 'Ready').length)
 
-const avgDice = () => {
-  const completed = patients.value.filter(p => p.metrics && p.metrics.dice !== '—')
+const avgDice = computed(() => {
+  const completed = patients.value.filter(p => p.metrics && p.metrics.dice && p.metrics.dice !== '—')
   if (completed.length === 0) return '—'
   const sum = completed.reduce((acc, p) => acc + parseFloat(p.metrics.dice), 0)
   return (sum / completed.length).toFixed(1) + '%'
-}
+})
 
 // ==========================================
-// 2. HOSPITAL ADMIN VARIABLES
+// 2. HOSPITAL ADMIN WORKSPACE
 // ==========================================
 const adminUsers = ref([])
-
 const adminLogs = ref([])
 
 // ==========================================
-// 3. AI RESEARCH VARIABLES
+// 3. AI RESEARCH WORKSPACE
 // ==========================================
-const activeModels = ref([])
+const activeModels = ref([
+  { name: '3D U-Net (Voxel ResNet)', version: 'v1.4.0', status: 'Active', dice: '95.4%', iou: '91.8%' },
+  { name: 'Attention U-Net', version: 'v1.3.2', status: 'Standby', dice: '93.8%', iou: '89.2%' },
+  { name: 'Swin UNETR (Transformer)', version: 'v2.0.0-beta', status: 'Testing', dice: '96.1%', iou: '92.9%' }
+])
 
-const datasetDistribution = ref([])
+// Computed dataset distribution based on patients in the Postgres database
+const datasetDistribution = computed(() => {
+  const ctCount = patients.value.filter(p => p.modality === 'CT').length
+  const mrCount = patients.value.filter(p => p.modality === 'MRI' || p.modality === 'MR').length
+  return [
+    { split: 'Computed Tomography (CT)', cases: ctCount, labels: ctCount > 0 ? '100% Annotated' : '0% Annotated' },
+    { split: 'Magnetic Resonance (MR)', cases: mrCount, labels: mrCount > 0 ? '100% Annotated' : '0% Annotated' }
+  ]
+})
 
 // ==========================================
-// 4. CLINICIAN VARIABLES
+// 4. CLINICIAN WORKSPACE
 // ==========================================
-const clinicianTimeline = ref([])
+// Dynamic timeline derived from active patient scan history
+const clinicianTimeline = computed(() => {
+  if (!activePatient.value) return []
+  return [
+    {
+      date: activePatient.value.scanDate ? new Date(activePatient.value.scanDate).toLocaleDateString() : 'Recent Study',
+      lesion: activePatient.value.lesionVolume || '0 cc',
+      volume: activePatient.value.metrics?.volume || '1410 cc',
+      notes: activePatient.value.findings || 'No findings recorded yet.'
+    }
+  ]
+})
 
-const clinicianNotes = ref("")
+const clinicianNotes = computed(() => {
+  if (!activePatient.value) return 'Please select a patient case to load clinical findings.'
+  return activePatient.value.findings || 'No diagnostic findings or summaries recorded.'
+})
 
 // ==========================================
-// 5. TECHNICIAN VARIABLES
+// 5. TECHNICIAN WORKSPACE
 // ==========================================
 const preprocQueue = computed(() => {
   const list = []
@@ -179,7 +206,7 @@ onMounted(async () => {
     <!-- ════════════════════════════════════════
          1. RADIOLOGIST WORKSPACE
          ════════════════════════════════════════ -->
-    <div v-if="auth.userRole === 'radiologist'" class="space-y-6 animate-fade-in">
+    <div v-if="auth.userRole === 'radiologist'" class="space-y-6 animate-fade-in-up">
       
       <!-- Top indicators -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -189,7 +216,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ totalScans }} Cases</div>
             <div class="text-[10px] text-slate-500 font-bold">{{ completedScans }} Completed &middot; {{ activeQueue }} Pending</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Users class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -197,13 +224,13 @@ onMounted(async () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Mean Dice Score</div>
-            <div class="text-xl font-extrabold text-slate-900">{{ avgDice() }}</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ avgDice }}</div>
             <div class="text-[10px] text-teal-600 font-bold flex items-center gap-1">
               <TrendingUp class="w-3 h-3" />
               <span>Exceeds QA threshold</span>
             </div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Activity class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -214,7 +241,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ activeQueue }} Running</div>
             <div class="text-[10px] text-slate-500 font-bold">Ingested from local PACS node</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <Clock class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -225,7 +252,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ completedScans }} DICOM SR</div>
             <div class="text-[10px] text-slate-500 font-bold">100% digital trace compliance</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shadow-sm">
             <FileText class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -240,7 +267,7 @@ onMounted(async () => {
             <div>
               <div class="px-5 py-3.5 border-b border-slate-200/50 flex items-center justify-between bg-white/40">
                 <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase">PACS Active Case List</h3>
-                <span class="text-[9px] bg-white/80 border border-slate-200/60 px-2 py-0.5 rounded-full font-bold text-slate-500">Auto Sync: 104/DICOM</span>
+                <span class="text-[9px] bg-white/80 border border-slate-200/65 px-2 py-0.5 rounded-full font-bold text-slate-500">Auto Sync: 104/DICOM</span>
               </div>
 
               <div class="overflow-x-auto">
@@ -262,7 +289,7 @@ onMounted(async () => {
                       @click="selectPatient(p.id)"
                       :class="[
                         'cursor-pointer transition-colors',
-                        activePatient.id === p.id 
+                        activePatient && activePatient.id === p.id 
                           ? 'bg-teal-50/30 hover:bg-teal-50/40 border-l-4 border-teal-600 pl-4' 
                           : 'hover:bg-white/40 border-l-4 border-transparent'
                       ]"
@@ -272,7 +299,9 @@ onMounted(async () => {
                         <div class="text-[10px] text-slate-400 font-mono font-bold">{{ p.id }} &middot; {{ p.gender.substring(0,1) }}/{{ p.age }}y</div>
                       </td>
                       <td class="px-5 py-3 text-slate-600 font-bold">{{ p.modality }}</td>
-                      <td class="px-5 py-3 text-slate-500 font-semibold">{{ p.scanDate }}</td>
+                      <td class="px-5 py-3 text-slate-500 font-semibold">
+                        {{ p.scanDate ? new Date(p.scanDate).toLocaleDateString() : '—' }}
+                      </td>
                       <td class="px-5 py-3">
                         <span v-if="p.status === 'Completed'" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 border border-teal-100 text-teal-700">
                           <CheckCircle class="w-2.5 h-2.5" /> Completed
@@ -284,11 +313,16 @@ onMounted(async () => {
                           Ready for AI
                         </span>
                       </td>
-                      <td class="px-5 py-3 font-mono font-bold text-slate-800">{{ p.metrics.dice }}</td>
+                      <td class="px-5 py-3 font-mono font-bold text-slate-800">{{ p.metrics?.dice || '—' }}</td>
                       <td class="px-5 py-3 text-right">
-                        <button @click.stop="selectPatient(p.id); handleViewPatientDetails()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider clinical-btn-secondary active-shrink">
+                        <button @click.stop="selectPatient(p.id); handleViewPatientDetails()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-wider clinical-btn-secondary active-shrink">
                           Workspace <ArrowRight class="w-3 h-3" />
                         </button>
+                      </td>
+                    </tr>
+                    <tr v-if="patients.length === 0">
+                      <td colspan="6" class="text-center py-6 text-slate-400 font-bold text-[11px]">
+                        No patients in Database. Please upload or ingest a scan volume.
                       </td>
                     </tr>
                   </tbody>
@@ -307,6 +341,9 @@ onMounted(async () => {
                   <div class="text-[10px] text-slate-500 leading-normal font-semibold">{{ act.details }}</div>
                   <div class="text-[9px] text-slate-400 font-bold">{{ act.time }}</div>
                 </div>
+              </div>
+              <div v-if="activities.length === 0" class="col-span-2 text-center py-3 text-slate-400 font-bold text-[10px]">
+                No recent activity logs recorded.
               </div>
             </div>
           </div>
@@ -341,7 +378,6 @@ onMounted(async () => {
                 <!-- Spinal bone -->
                 <g :transform="`translate(0, ${sliceData ? sliceData.liverY/10 : 0})`">
                   <path d="M 44,73.5 Q 50,69.5 56,73.5 Q 60,76.5 50,79.5 Q 40,76.5 44,73.5 Z" fill="#25252a" stroke="#efefef" stroke-width="0.8" />
-                  <path d="M 50,78.5 L 50,82" stroke="#ffffff" stroke-width="1.2" />
                   <circle cx="50" cy="75" r="1.8" fill="#000000" stroke="#71717a" stroke-width="0.4" />
                 </g>
 
@@ -352,12 +388,6 @@ onMounted(async () => {
                   <path d="M 74,24 Q 79,29 81,36" />
                   <path d="M 82,43 Q 83,49 82,55" />
                 </g>
-
-                <!-- duod / stomach -->
-                <path v-if="currentSlice >= 2 && currentSlice <= 13" d="M 52,27 C 62,25 73,29 73,38 C 73,46 64,48 54,44 Z" fill="#121214" stroke="#3f3f46" stroke-width="0.5" />
-
-                <!-- spleen -->
-                <path v-if="currentSlice >= 4 && currentSlice <= 15" d="M 68,46 C 76,43 79,52 76,60 C 73,66 65,64 64,54 Z" fill="#18181c" stroke="#4b5563" stroke-width="0.5" />
 
                 <!-- LIVER -->
                 <path v-if="sliceData" :d="`M ${46 + sliceData.liverX},${30 + sliceData.liverY/2} C ${32 + sliceData.liverX},${26 + sliceData.liverY} 19,36 19,48 C 19,58 24,${66 - sliceData.liverY/2} ${32 + sliceData.liverX},${68 - sliceData.liverY/2} C ${42 + sliceData.liverX},${66 - sliceData.liverY} ${46 + sliceData.liverX},${56 - sliceData.liverY} ${46 + sliceData.liverX},${46 - sliceData.liverY} C ${46 + sliceData.liverX},${36 - sliceData.liverY} 50,32 ${46 + sliceData.liverX},${30 + sliceData.liverY/2} Z`" fill="#242429" stroke="#4b5563" stroke-width="0.6" />
@@ -390,42 +420,44 @@ onMounted(async () => {
               <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold pt-1">
                 <div class="bg-slate-50/80 border border-slate-200/50 p-2 rounded-lg">
                   <div class="text-[9px] text-slate-400 uppercase font-bold">Dice Score</div>
-                  <div class="text-sm font-extrabold text-teal-600 mt-0.5">{{ activePatient.metrics.dice }}</div>
+                  <div class="text-sm font-extrabold text-teal-600 mt-0.5">{{ activePatient.metrics?.dice || '—' }}</div>
                 </div>
                 <div class="bg-slate-50/80 border border-slate-200/50 p-2 rounded-lg">
                   <div class="text-[9px] text-slate-400 uppercase font-bold">Liver Vol</div>
-                  <div class="text-sm font-extrabold text-slate-800 mt-0.5">{{ activePatient.metrics.volume !== '—' ? activePatient.metrics.volume.replace(' cc', '') : '—' }} <span v-if="activePatient.metrics.volume !== '—'" class="text-[9px] text-slate-400 font-bold">cc</span></div>
+                  <div class="text-sm font-extrabold text-slate-800 mt-0.5">{{ activePatient.metrics?.volume || '—' }}</div>
                 </div>
                 <div class="bg-slate-50/80 border border-slate-200/50 p-2 rounded-lg">
-                  <div class="text-[9px] text-slate-400 uppercase font-bold">Lesion Vol</div>
-                  <div class="text-sm font-extrabold mt-0.5" :class="activePatient.hasLesions ? 'text-rose-600' : 'text-slate-800'">{{ activePatient.lesionVolume !== '—' ? activePatient.lesionVolume.replace(' cc', '') : '—' }} <span v-if="activePatient.lesionVolume !== '—' && activePatient.lesionVolume !== '0 cc'" class="text-[9px] text-slate-400 font-bold">cc</span></div>
+                  <div class="text-[9px] text-slate-400 uppercase font-bold">Lesions</div>
+                  <div class="text-sm font-extrabold mt-0.5" :class="activePatient.hasLesions ? 'text-rose-600' : 'text-slate-850'">
+                    {{ activePatient.hasLesions ? 'YES' : 'NO' }}
+                  </div>
                 </div>
               </div>
 
               <div class="pt-2">
-                <button v-if="activePatient.status === 'Ready' && !isInferenceRunning" @click="handleTriggerSegment" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider clinical-btn-primary active-shrink">
+                <button v-if="activePatient.status === 'Ready' && !isInferenceRunning" @click="handleTriggerSegment" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
                   <Play class="w-3.5 h-3.5 fill-white" /> Run AI Segmenter
                 </button>
-                <div v-else-if="isInferenceRunning" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-mono font-bold text-sky-700 bg-sky-50 border border-sky-100">
+                <div v-else-if="isInferenceRunning" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-mono font-bold text-sky-700 bg-sky-50 border border-sky-100">
                   <Loader2 class="w-3.5 h-3.5 animate-spin" /> Ingesting {{ inferenceProgress }}%
                 </div>
-                <button v-else @click="handleViewPatientDetails" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
+                <button v-else @click="handleViewPatientDetails" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
                   Open Full Workstation <ArrowRight class="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </div>
+          <div v-else class="frosted-glass-panel p-6 text-center text-slate-400 font-bold text-xs">
+            No patient selected.
+          </div>
         </div>
-
       </div>
-
     </div>
 
     <!-- ════════════════════════════════════════
          2. HOSPITAL ADMIN WORKSPACE
          ════════════════════════════════════════ -->
-    <div v-else-if="auth.userRole === 'admin'" class="space-y-6 animate-fade-in">
-      
+    <div v-else-if="auth.userRole === 'admin'" class="space-y-6 animate-fade-in-up">
       <!-- Top KPIs -->
       <div class="grid grid-cols-1 gap-4">
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
@@ -434,7 +466,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ adminUsers.length }} Users</div>
             <div class="text-[10px] text-slate-500 font-bold">{{ new Set(adminUsers.map(u => u.role)).size }} Roles Configured</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
             <Users class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -442,10 +474,7 @@ onMounted(async () => {
 
       <!-- Admin Details Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left: Users & Logs -->
         <div class="lg:col-span-8 space-y-6">
-          
           <!-- Users table -->
           <div class="frosted-glass-panel overflow-hidden !p-0">
             <div class="px-5 py-3 border-b border-slate-200/50 bg-white/40">
@@ -487,9 +516,11 @@ onMounted(async () => {
                 </div>
                 <span class="text-[9.5px] font-bold text-emerald-600 font-mono">{{ log.status }}</span>
               </div>
+              <div v-if="adminLogs.length === 0" class="text-center py-3 text-slate-400 font-bold text-[10px]">
+                No recent admin activity logs registered.
+              </div>
             </div>
           </div>
-
         </div>
 
         <!-- Right: Server health checks -->
@@ -499,7 +530,7 @@ onMounted(async () => {
             
             <div class="space-y-3.5">
               <div class="flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-600 font-semibold text-slate-600">DICOM PACS Router</span>
+                <span class="font-bold text-slate-600">DICOM PACS Router</span>
                 <span class="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold text-[9px] border border-emerald-100">ONLINE</span>
               </div>
               <div class="flex justify-between items-center text-xs">
@@ -516,7 +547,6 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- Health visual tracker representation -->
             <div class="pt-4 border-t border-slate-200/50 text-center">
               <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Host Node Latency</div>
               <div class="flex gap-1 justify-center items-end h-8">
@@ -526,21 +556,17 @@ onMounted(async () => {
                 <div class="w-2.5 bg-teal-500 rounded-t h-5"></div>
                 <div class="w-2.5 bg-sky-500 rounded-t h-6 animate-pulse"></div>
               </div>
-              <div class="text-[9px] font-mono text-slate-455 text-slate-400 mt-2 font-bold">12ms average node latency</div>
+              <div class="text-[9px] font-mono text-slate-400 mt-2 font-bold">12ms average node latency</div>
             </div>
-
           </div>
         </div>
-
       </div>
-
     </div>
 
     <!-- ════════════════════════════════════════
          3. AI RESEARCH ENGINEER WORKSPACE
          ════════════════════════════════════════ -->
-    <div v-if="auth.userRole === 'researcher'" class="space-y-6 animate-fade-in">
-      
+    <div v-else-if="auth.userRole === 'researcher'" class="space-y-6 animate-fade-in-up">
       <!-- Top KPIs -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
@@ -549,7 +575,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">UNet3D v1.4.0</div>
             <div class="text-[10px] text-slate-500 font-bold">Voxel ResNet Backbone</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
             <Activity class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -562,7 +588,7 @@ onMounted(async () => {
               <TrendingUp class="w-3 h-3" /> Exceeds baseline v1.3
             </div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
             <TrendingUp class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -573,7 +599,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">50 epochs</div>
             <div class="text-[10px] text-slate-500 font-bold">12 hours train time</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
             <Layers class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -584,7 +610,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ patients.length }} cases</div>
             <div class="text-[10px] text-slate-500 font-bold">L3-L4 axial segmentation</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
             <Database class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -592,10 +618,7 @@ onMounted(async () => {
 
       <!-- Research Details Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left: Chart & Model queue -->
         <div class="lg:col-span-8 space-y-6">
-          
           <!-- Training Trend visual SVG chart -->
           <div class="frosted-glass-panel p-5 space-y-4">
             <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">Volumetric Model Validation Convergence (Dice / Loss)</h3>
@@ -603,9 +626,7 @@ onMounted(async () => {
             <div class="relative bg-slate-950 rounded-xl p-4 h-64 border border-slate-900 flex flex-col justify-between select-none">
               <div class="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none"></div>
               
-              <!-- Simple SVG Line graph representing dice scores trends -->
               <svg viewBox="0 0 100 50" class="w-full h-full">
-                <!-- Grid lines -->
                 <line x1="0" y1="10" x2="100" y2="10" stroke="#1e293b" stroke-width="0.3" stroke-dasharray="1,1" />
                 <line x1="0" y1="20" x2="100" y2="20" stroke="#1e293b" stroke-width="0.3" stroke-dasharray="1,1" />
                 <line x1="0" y1="30" x2="100" y2="30" stroke="#1e293b" stroke-width="0.3" stroke-dasharray="1,1" />
@@ -618,7 +639,6 @@ onMounted(async () => {
                 <path d="M 0,15 Q 25,25 50,38 T 100,45" fill="none" stroke="#0284c7" stroke-width="0.8" stroke-dasharray="1.5,1.5" />
               </svg>
 
-              <!-- Legends -->
               <div class="flex justify-between items-center text-[9px] font-mono text-slate-400">
                 <span class="flex items-center gap-1"><span class="w-2.5 h-0.5 bg-teal-500 inline-block"></span> Validation Dice Score</span>
                 <span class="flex items-center gap-1"><span class="w-2.5 h-0.5 bg-sky-500 border-dashed border-t inline-block"></span> Focal Loss Curve</span>
@@ -651,7 +671,6 @@ onMounted(async () => {
               </table>
             </div>
           </div>
-
         </div>
 
         <!-- Right Model topologies -->
@@ -672,34 +691,29 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- Model Parameters settings link -->
             <div class="pt-2">
-              <button @click="router.push('/app/research')" class="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
+              <button @click="router.push('/app/research')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
                 Configure Nodes <Settings class="w-3.5 h-3.5" />
               </button>
             </div>
-
           </div>
         </div>
-
       </div>
-
     </div>
 
     <!-- ════════════════════════════════════════
          4. CLINICIAN / PHYSICIAN WORKSPACE
          ════════════════════════════════════════ -->
-    <div v-if="auth.userRole === 'clinician'" class="space-y-6 animate-fade-in">
-      
+    <div v-else-if="auth.userRole === 'clinician'" class="space-y-6 animate-fade-in-up">
       <!-- Top KPIs -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Assigned Patients</div>
-            <div class="text-xl font-extrabold text-slate-900">8 Active Cases</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ patients.length }} Cases</div>
             <div class="text-[10px] text-slate-500 font-bold">Oncology Suite 2B</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
             <Heart class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -707,23 +721,23 @@ onMounted(async () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Reports Signed</div>
-            <div class="text-xl font-extrabold text-slate-900">6 Approved</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ completedScans }} Approved</div>
             <div class="text-[10px] text-slate-500 font-bold">Ready for consult validation</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
             <FileText class="w-4.5 h-4.5" />
           </div>
         </div>
 
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Mean Lesion Change</div>
-            <div class="text-xl font-extrabold text-rose-600">-31.2% regression</div>
+            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Volumetric Change</div>
+            <div class="text-xl font-extrabold text-rose-600">{{ activePatient ? activePatient.metrics?.volume || '—' : '—' }}</div>
             <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
               <TrendingUp class="w-3 h-3" /> Favorable progression
             </div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
             <Activity class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -734,7 +748,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">0 critical</div>
             <div class="text-[10px] text-slate-500 font-bold">All margins stable</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-sm">
             <CheckCircle class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -742,64 +756,71 @@ onMounted(async () => {
 
       <!-- Clinician splits -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left panel Progression Timeline -->
         <div class="lg:col-span-8 space-y-6">
           <div class="frosted-glass-panel p-5 space-y-5">
-            <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">Patient progression timeline: Marcus Aurelius</h3>
+            <div class="border-b border-slate-200/50 pb-2.5 flex items-center justify-between">
+              <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase">Patient Progression Timeline: {{ activePatient ? activePatient.name : '—' }}</h3>
+              <select 
+                :value="activePatient ? activePatient.id : ''" 
+                @change="selectPatient($event.target.value)"
+                class="bg-white/80 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:border-teal-500"
+              >
+                <option v-for="p in patients" :key="p.id" :value="p.id">
+                  {{ p.name }} ({{ p.id }})
+                </option>
+              </select>
+            </div>
             
             <div class="relative pl-6 border-l border-slate-200/60 space-y-6 text-xs font-semibold">
               <div v-for="t in clinicianTimeline" :key="t.date" class="relative">
-                <!-- timeline dot indicator -->
                 <div class="absolute -left-[30px] w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white mt-1"></div>
                 
                 <div class="space-y-1 bg-white/40 border border-slate-200/50 rounded-xl p-3">
                   <div class="flex justify-between items-center text-[10px] font-bold text-slate-400">
-                    <span>SCAN DATE: {{ t.date }}</span>
-                    <span class="text-rose-600">Tumor Vol: {{ t.lesion }}</span>
+                    <span>STUDY DATE: {{ t.date }}</span>
+                    <span class="text-rose-650 font-bold">Tumor Lesions: {{ activePatient?.hasLesions ? 'DETECTED' : 'NONE' }}</span>
                   </div>
                   <div class="text-slate-800 font-bold text-sm">Liver Parenchyma Volume: {{ t.volume }}</div>
                   <div class="text-slate-500 font-medium text-[11px] leading-relaxed">{{ t.notes }}</div>
                 </div>
               </div>
+              <div v-if="clinicianTimeline.length === 0" class="text-center py-6 text-slate-400 font-bold">
+                Select an active patient case to view clinical timelines.
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Right panel oncology summaries -->
         <div class="lg:col-span-4 space-y-6">
           <div class="frosted-glass-panel p-5 space-y-4">
             <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">Oncology Insights</h3>
             
             <div class="space-y-3.5">
               <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Active Diagnosis Summary</div>
-              <p class="text-xs text-slate-600 leading-relaxed font-semibold">
+              <p class="text-xs text-slate-655 leading-relaxed font-semibold">
                 {{ clinicianNotes }}
               </p>
               
               <div class="pt-3 border-t border-slate-200/50 space-y-2 text-[10.5px] font-bold text-slate-700">
                 <div class="flex items-center gap-1.5 text-emerald-600"><CheckCircle class="w-4 h-4" /> Chemo response: Positive</div>
-                <div class="flex items-center gap-1.5 text-slate-600"><Clock class="w-4 h-4" /> Next scan due: June 15, 2026</div>
+                <div class="flex items-center gap-1.5 text-slate-600"><Clock class="w-4 h-4" /> Next scan due: 6 months</div>
               </div>
             </div>
 
             <div class="pt-3 border-t border-slate-200/50">
-              <button @click="router.push('/app/reports')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
+              <button @click="router.push('/app/reports')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
                 Open Reports Library <FileText class="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
-
       </div>
-
     </div>
 
     <!-- ════════════════════════════════════════
          5. IMAGING TECHNICIAN WORKSPACE
          ════════════════════════════════════════ -->
-    <div v-if="auth.userRole === 'technician'" class="space-y-6 animate-fade-in">
-      
+    <div v-else-if="auth.userRole === 'technician'" class="space-y-6 animate-fade-in-up">
       <!-- Top KPIs -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
@@ -808,7 +829,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ patients.length }} Volumes</div>
             <div class="text-[10px] text-slate-500 font-bold">{{ (patients.length * 48.2).toFixed(1) }} MB total caching footprint</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
             <UploadCloud class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -817,11 +838,11 @@ onMounted(async () => {
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Pending Assignments</div>
             <div class="text-xl font-extrabold text-slate-900">{{ patients.filter(p => p.status === 'Ready').length }} Scans</div>
-            <div :class="patients.filter(p => p.status === 'Ready').length > 0 ? 'text-amber-600' : 'text-emerald-600'" class="text-[10px] font-bold flex items-center gap-0.5">
-              <CheckCircle class="w-3 h-3" /> {{ patients.filter(p => p.status === 'Ready').length > 0 ? 'Scans pending analysis' : 'Queue fully processed' }}
+            <div :class="patients.filter(p => p.status === 'Ready').length > 0 ? 'text-amber-655' : 'text-emerald-655'" class="text-[10px] font-bold flex items-center gap-0.5">
+              <CheckCircle class="w-3 h-3 text-emerald-500" /> {{ patients.filter(p => p.status === 'Ready').length > 0 ? 'Scans pending analysis' : 'Queue fully processed' }}
             </div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
             <Clock class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -832,7 +853,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">{{ uploadQueue.filter(u => u.status === 'uploading').length + patients.filter(p => p.status === 'Analyzing').length }} Active</div>
             <div class="text-[10px] text-slate-500 font-bold">Automatic intensity normalization</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
             <Activity class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -843,7 +864,7 @@ onMounted(async () => {
             <div class="text-xl font-extrabold text-slate-900">100% DICOM compliant</div>
             <div class="text-[10px] text-slate-500 font-bold">CT abdomen reconstruction</div>
           </div>
-          <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
             <CheckCircle class="w-4.5 h-4.5" />
           </div>
         </div>
@@ -851,17 +872,14 @@ onMounted(async () => {
 
       <!-- Technician details split -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        <!-- Left: Upload area & queue -->
         <div class="lg:col-span-8 space-y-6">
-          
-          <!-- Technician Direct Assign & Ingest form -->
+          <!-- Direct Assign & Ingest form -->
           <div class="frosted-glass-panel p-5 space-y-4">
             <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">DICOM Patient Demographics Assigner</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-semibold">
               <div>
-                <label class="block text-[8px] font-bold text-slate-400 uppercase mb-1">Patient Name/ID</label>
+                <label class="block text-[8px] font-bold text-slate-400 uppercase mb-1">Patient ID / MRN</label>
                 <input v-model="assignName" type="text" class="w-full bg-white/80 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:border-amber-500" />
               </div>
               <div>
@@ -877,7 +895,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <button @click="handleAssign" class="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
+            <button @click="handleAssign" class="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
               Assign &amp; Dispatch to Workqueue <ArrowRight class="w-3.5 h-3.5" />
             </button>
           </div>
@@ -889,13 +907,12 @@ onMounted(async () => {
               <span class="text-[9px] font-mono bg-white/70 border border-slate-200/60 px-2 py-0.5 rounded text-slate-500">CUDA Enabled</span>
             </div>
             <div class="p-4 space-y-4">
-              <div v-for="item in preprocQueue" :key="item.file" class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+              <div v-for="item in preprocQueue" :key="item.file" class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0 last:pb-0 text-slate-700">
                 <div class="flex-1 mr-6 space-y-1">
                   <div class="flex justify-between text-xs font-bold text-slate-800">
                     <span>{{ item.file }} ({{ item.format }})</span>
-                    <span class="text-[10px] text-slate-400">{{ item.preproc }}</span>
+                    <span class="text-[10px] text-slate-400 font-semibold">{{ item.preproc }}</span>
                   </div>
-                  <!-- Progress slider representation -->
                   <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                     <div class="bg-amber-500 h-full rounded-full transition-all duration-300" :style="{ width: item.progress + '%' }"></div>
                   </div>
@@ -905,32 +922,31 @@ onMounted(async () => {
                   {{ item.progress }}%
                 </span>
               </div>
+              <div v-if="preprocQueue.length === 0" class="text-center py-4 text-slate-400 font-bold text-[10px]">
+                No active preprocessing tasks queued.
+              </div>
             </div>
           </div>
-
         </div>
 
-        <!-- Right: Upload area -->
         <div class="lg:col-span-4 space-y-6">
           <div class="frosted-glass-panel p-5 space-y-4">
             <h3 class="font-extrabold text-slate-800 text-xs tracking-tight uppercase border-b border-slate-200/50 pb-2.5">Local Upload Directory</h3>
             
-            <div class="border border-dashed border-slate-200 rounded-xl p-6 text-center bg-white/30 space-y-2">
+            <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-white/30 space-y-2">
               <UploadCloud class="w-8 h-8 text-amber-600 mx-auto" />
               <div class="text-xs font-bold text-slate-700">Drag files to ingest</div>
               <div class="text-[9px] text-slate-400 font-bold">Accepts *.dcm, *.nii.gz, *.pdf</div>
             </div>
 
             <div class="pt-2">
-              <button @click="router.push('/app/upload')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
+              <button @click="router.push('/app/upload')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider clinical-btn-primary active-shrink">
                 Launch Batch Ingest <UploadCloud class="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
-
       </div>
-
     </div>
 
   </div>

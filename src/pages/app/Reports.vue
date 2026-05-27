@@ -66,12 +66,12 @@ const handlePrint = () => window.print()
               <CheckCircle2 class="w-3.5 h-3.5 text-teal-500 flex-shrink-0 mt-0.5" />
             </div>
             <div class="flex items-center justify-between mt-2 text-[9px] font-bold">
-              <span class="text-slate-400">{{ rep.scanDate.substring(0,10) }}</span>
-              <span class="text-teal-600">{{ rep.metrics.dice }}</span>
+              <span class="text-slate-400">{{ rep.scanDate ? new Date(rep.scanDate).toLocaleDateString() : '—' }}</span>
+              <span class="text-teal-600">{{ rep.metrics?.dice || '—' }}</span>
             </div>
             <div class="mt-1.5 flex items-center gap-1.5">
               <span v-if="rep.hasLesions" class="text-[8px] font-bold text-rose-500 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-full">Lesion</span>
-              <span class="text-[8px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">{{ rep.metrics.volume }}</span>
+              <span class="text-[8px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">{{ rep.metrics?.volume || '—' }}</span>
             </div>
           </div>
 
@@ -106,7 +106,7 @@ const handlePrint = () => window.print()
               'Patient Name': activeReport.name,
               'Case Reference': activeReport.id,
               'Demographics': activeReport.gender + ', ' + activeReport.age + 'y',
-              'Acquisition Date': activeReport.scanDate
+              'Acquisition Date': activeReport.scanDate ? new Date(activeReport.scanDate).toLocaleDateString() : '—'
             }" :key="label">
               <div class="section-title mb-1">{{ label }}</div>
               <div class="text-xs font-bold text-slate-800">{{ val }}</div>
@@ -118,12 +118,12 @@ const handlePrint = () => window.print()
             <div class="section-title">1. Quantitative AI Segmentation Metrics</div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div v-for="(val, label) in {
-                'Liver Volume': activeReport.metrics.volume,
-                'Dice Score': activeReport.metrics.dice,
-                'IoU Score': activeReport.metrics.iou,
-                'Precision': activeReport.metrics.precision,
-                'Recall': activeReport.metrics.recall,
-                'AI Confidence': activeReport.metrics.confidence,
+                'Liver Volume': activeReport.metrics?.volume || '—',
+                'Dice Score': activeReport.metrics?.dice || '—',
+                'IoU Score': activeReport.metrics?.iou || '—',
+                'Precision': activeReport.metrics?.precision || '—',
+                'Recall': activeReport.metrics?.recall || '—',
+                'AI Confidence': activeReport.metrics?.confidence || '—',
               }" :key="label"
                 class="bg-white/60 border border-slate-200/60 p-3 rounded-xl shadow-sm"
               >
@@ -136,7 +136,7 @@ const handlePrint = () => window.print()
             <div :class="['p-3 rounded-xl border', activeReport.hasLesions ? 'bg-rose-50/60 border-rose-100' : 'bg-slate-50/60 border-slate-200/40']">
               <div class="section-title mb-1" :class="activeReport.hasLesions ? 'text-rose-600' : ''">Lesion Volume</div>
               <div class="text-lg font-black" :class="activeReport.hasLesions ? 'text-rose-700' : 'text-slate-600'">
-                {{ activeReport.lesionVolume }}
+                {{ activeReport.lesionVolume || '—' }}
               </div>
               <div class="text-[9px] font-medium mt-1" :class="activeReport.hasLesions ? 'text-rose-500' : 'text-slate-400'">
                 {{ activeReport.hasLesions ? 'Focal lesion detected — correlate clinically' : 'No significant focal lesions' }}

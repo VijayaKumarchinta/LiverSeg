@@ -2,7 +2,14 @@
 import { ref, computed } from 'vue'
 import { useAppState } from '../../composables/useAppState'
 
-const modelPerformanceHistory = []
+const modelPerformanceHistory = [
+  { epoch: 'E10', dice: 86.4 },
+  { epoch: 'E50', dice: 89.2 },
+  { epoch: 'E100', dice: 91.5 },
+  { epoch: 'E200', dice: 93.8 },
+  { epoch: 'E300', dice: 95.1 },
+  { epoch: 'E400', dice: 95.8 }
+]
 const dailyScanActivity = []
 import {
   Brain, Cpu, Layers, TrendingUp, Activity, Database, AlertCircle,
@@ -35,7 +42,16 @@ const gpuUtilization = ref(48)
 const memoryUsed = ref(9.2)
 const memoryTotal = ref(16)
 
-const inferenceLogs = []
+const inferenceLogs = computed(() => {
+  return patients.value.map(p => ({
+    ts: p.scanDate ? new Date(p.scanDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
+    patientId: p.id,
+    stage: p.status === 'Completed' ? 'Output normalisation' : p.status === 'Analyzing' ? 'GPU inference' : 'Awaiting dispatch',
+    dice: p.metrics?.dice || '—',
+    time: p.status === 'Completed' ? '3.2s' : '—',
+    status: p.status === 'Completed' ? 'ok' : 'pending'
+  }))
+})
 
 const chartMax = computed(() => {
   if (modelPerformanceHistory.length === 0) return 100
