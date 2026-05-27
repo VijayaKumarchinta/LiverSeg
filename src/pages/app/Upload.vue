@@ -8,6 +8,9 @@ import {
   X, ShieldCheck, ChevronRight, File, Database, Zap, Play, RotateCcw,
   ChevronLeft, BrainCircuit, Activity, Sliders, Layers, Award, CheckSquare, FileSignature
 } from 'lucide-vue-next'
+import CTViewer from '../../components/CTViewer.vue'
+import MetricsPanel from '../../components/MetricsPanel.vue'
+
 
 const router = useRouter()
 const {
@@ -492,250 +495,29 @@ const navigateToStep = (stepId) => {
       <!-- STEP 4: Visualize Slices -->
       <div v-if="currentStep === 4" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
         <!-- Visualizer Area (8 cols) -->
-        <div class="lg:col-span-8 frosted-glass-panel p-4 flex flex-col justify-between min-h-[480px]">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-200/50">
-            <div class="text-[9px] font-mono text-slate-400 space-y-0.5 font-semibold">
-              <div>ACTIVE MRN: {{ activePatient?.id }}</div>
-              <div>RESOLUTION: 512 x 512 x 20 voxels &middot; Slice {{ currentSlice + 1 }} of 20</div>
-            </div>
-            <button 
-              @click="handleResetWorkstation"
-              class="flex items-center gap-1 text-[9px] font-bold rounded px-2.5 py-1.5 clinical-btn-secondary active-shrink"
-            >
-              <RotateCcw class="w-3 h-3" /> Reset View
-            </button>
-          </div>
-
-          <!-- SVG CT display -->
-          <div class="flex-1 flex items-center justify-center bg-black/95 rounded-xl border border-slate-800/80 my-4 relative overflow-hidden select-none min-h-[300px]">
-            <div class="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none"></div>
-
-            <!-- PACS HUD -->
-            <div class="absolute top-3.5 left-4 text-[9px] font-mono text-slate-400 space-y-0.5 leading-normal pointer-events-none">
-              <div class="font-bold text-slate-350">{{ activePatient?.name }}</div>
-              <div>MRN: {{ activePatient?.id }}</div>
-              <div>Age/Sex: {{ activePatient?.age }}y / {{ activePatient?.gender }}</div>
-            </div>
-
-            <div class="absolute top-3.5 right-4 text-[9px] font-mono text-slate-400 text-right space-y-0.5 leading-normal pointer-events-none">
-              <div class="font-bold text-teal-500">LiversegAI v1.4</div>
-              <div>kVp: 120 &middot; mAs: 250</div>
-              <div>Thk: 1.0 mm</div>
-            </div>
-
-            <!-- Anatomy indicators -->
-            <div class="absolute top-3 text-[10px] font-bold font-mono text-slate-550 pointer-events-none">A</div>
-            <div class="absolute bottom-3 text-[10px] font-bold font-mono text-slate-550 pointer-events-none">P</div>
-            <div class="absolute left-3 text-[10px] font-bold font-mono text-slate-550 pointer-events-none">R</div>
-            <div class="absolute right-3 text-[10px] font-bold font-mono text-slate-550 pointer-events-none">L</div>
-
-            <svg viewBox="0 0 100 100" class="w-64 h-64 md:w-80 md:h-80 transition-all duration-350" :style="ctFilterStyle">
-              <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255, 255, 255, 0.05)" stroke-width="0.3" stroke-dasharray="2,2" />
-              <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255, 255, 255, 0.05)" stroke-width="0.3" stroke-dasharray="2,2" />
-              
-              <!-- Left Calibration Ruler -->
-              <line x1="4" y1="15" x2="4" y2="85" stroke="rgba(255,255,255,0.25)" stroke-width="0.4" />
-              <line x1="4" y1="15" x2="6.5" y2="15" stroke="rgba(255,255,255,0.3)" stroke-width="0.4" />
-              <line x1="4" y1="50" x2="6.5" y2="50" stroke="rgba(255,255,255,0.3)" stroke-width="0.4" />
-              <line x1="4" y1="85" x2="6.5" y2="85" stroke="rgba(255,255,255,0.3)" stroke-width="0.4" />
-
-              <!-- Body Fat Wall -->
-              <path 
-                v-if="sliceData"
-                :d="`M 50,${22 - sliceData.liverY/8} 
-                     C ${68 + sliceData.liverX/6},${20 - sliceData.liverY/8} ${84 + sliceData.liverX/8},28 ${84 + sliceData.liverX/8},48 
-                     C ${84 + sliceData.liverX/8},64 70,${74 + sliceData.liverY/8} 58,${76 + sliceData.liverY/8} 
-                     C 53,${77 + sliceData.liverY/8} 50,${72 + sliceData.liverY/10} 50,${72 + sliceData.liverY/10} 
-                     C 50,${72 + sliceData.liverY/10} 47,${77 + sliceData.liverY/8} 42,${76 + sliceData.liverY/8} 
-                     C 30,${74 + sliceData.liverY/8} ${16 - sliceData.liverX/8},64 ${16 - sliceData.liverX/8},48 
-                     C ${16 - sliceData.liverX/8},28 ${32 - sliceData.liverX/6},${20 - sliceData.liverY/8} 50,${22 - sliceData.liverY/8} Z`"
-                fill="#16161a" 
-                stroke="#2a2a2f" 
-                stroke-width="1.8" 
-              />
-
-              <!-- Abdominal Cavity -->
-              <path 
-                v-if="sliceData"
-                :d="`M 50,24 
-                     C 66,22 81,29 81,48 
-                     C 81,62 68,71 57,73 
-                     C 53,74 50,70 50,70 
-                     C 50,70 47,74 43,73 
-                     C 32,71 19,62 19,48 
-                     C 19,29 34,22 50,24 Z`"
-                fill="#060608" 
-                stroke="#202024" 
-                stroke-width="0.8" 
-              />
-
-              <!-- Spine -->
-              <g :transform="`translate(0, ${sliceData ? sliceData.liverY/10 : 0})`">
-                <path d="M 44,73.5 Q 50,69.5 56,73.5 Q 60,76.5 50,79.5 Q 40,76.5 44,73.5 Z" fill="#202024" stroke="#ffffff" stroke-width="0.8" />
-                <circle cx="50" cy="75" r="1.8" fill="#000000" stroke="#8e8e93" stroke-width="0.4" />
-              </g>
-
-              <!-- Kidneys -->
-              <g v-if="currentSlice >= 7 && currentSlice <= 17">
-                <path d="M 27,62 C 23,56 27,47 31,51 C 35,55 31,64 27,64 Z" fill="#16161a" stroke="#3a3a40" stroke-width="0.6" />
-                <path d="M 73,62 C 77,56 73,47 69,51 C 65,55 69,64 73,64 Z" fill="#16161a" stroke="#3a3a40" stroke-width="0.6" />
-              </g>
-
-              <!-- Spleen -->
-              <path 
-                v-if="currentSlice >= 4 && currentSlice <= 15"
-                d="M 68,46 C 76,43 79,52 76,60 C 73,66 65,64 64,54 Z"
-                fill="#18181c" 
-                stroke="#44444a" 
-                stroke-width="0.65" 
-              />
-
-              <!-- LIVER -->
-              <path 
-                v-if="sliceData"
-                :d="`M ${46 + sliceData.liverX},${30 + sliceData.liverY/2} 
-                     C ${32 + sliceData.liverX},${26 + sliceData.liverY} 19,36 19,48 
-                     C 19,58 24,${66 - sliceData.liverY/2} ${32 + sliceData.liverX},${68 - sliceData.liverY/2} 
-                     C ${42 + sliceData.liverX},${66 - sliceData.liverY} ${46 + sliceData.liverX},${56 - sliceData.liverY} ${46 + sliceData.liverX},${46 - sliceData.liverY} 
-                     C ${46 + sliceData.liverX},${36 - sliceData.liverY} 50,32 ${46 + sliceData.liverX},${30 + sliceData.liverY/2} Z`" 
-                fill="#202024" 
-                stroke="#484850" 
-                stroke-width="0.7" 
-              />
-
-              <!-- AI TEAL SEGMENTATION MASK -->
-              <path 
-                v-if="sliceData"
-                :d="`M ${46 + sliceData.liverX},${30 + sliceData.liverY/2} 
-                     C ${32 + sliceData.liverX},${26 + sliceData.liverY} 19,36 19,48 
-                     C 19,58 24,${66 - sliceData.liverY/2} ${32 + sliceData.liverX},${68 - sliceData.liverY/2} 
-                     C ${42 + sliceData.liverX},${66 - sliceData.liverY} ${46 + sliceData.liverX},${56 - sliceData.liverY} ${46 + sliceData.liverX},${46 - sliceData.liverY} 
-                     C ${46 + sliceData.liverX},${36 - sliceData.liverY} 50,32 ${46 + sliceData.liverX},${30 + sliceData.liverY/2} Z`" 
-                :fill="`rgba(20, 184, 166, ${maskOpacity / 100})`" 
-                stroke="#14b8a6" 
-                :stroke-width="maskOpacity > 0 ? 1.0 : 0" 
-              />
-
-              <!-- GROUND TRUTH CONTOUR -->
-              <path 
-                v-if="sliceData && showGroundTruth"
-                :d="`M ${46.5 + sliceData.liverX},${30.5 + sliceData.liverY/2} 
-                     C ${32.5 + sliceData.liverX},${26.5 + sliceData.liverY} 18.5,35.5 18.5,48 
-                     C 18.5,58.5 23.5,${66.5 - sliceData.liverY/2} ${32.5 + sliceData.liverX},${68.5 - sliceData.liverY/2} 
-                     C ${42.5 + sliceData.liverX},${66.5 - sliceData.liverY} ${46.5 + sliceData.liverX},${56.5 - sliceData.liverY} ${46.5 + sliceData.liverX},${46.5 - sliceData.liverY} 
-                     C ${46.5 + sliceData.liverX},${36.5 - sliceData.liverY} 50.5,31.5 ${46.5 + sliceData.liverX},${30.5 + sliceData.liverY/2} Z`" 
-                fill="none" 
-                stroke="#10b981" 
-                stroke-width="0.8" 
-                stroke-dasharray="1.5,1.5" 
-              />
-
-              <!-- TUMOR LESION -->
-              <circle 
-                v-if="sliceData && sliceData.lesionSize > 0 && showLesions"
-                :cx="28 + sliceData.lesionX / 5" 
-                :cy="48 + sliceData.lesionY / 5" 
-                :r="sliceData.lesionSize * 15" 
-                fill="rgba(239, 68, 68, 0.45)" 
-                stroke="#ef4444" 
-                stroke-width="0.55" 
-              />
-            </svg>
-          </div>
-
-          <!-- Slider navigator -->
-          <div class="space-y-2 border-t border-slate-200/50 pt-3">
-            <div class="flex justify-between items-center text-xs">
-              <span class="font-bold text-slate-700">Axial Slice Navigator</span>
-              <span class="font-mono text-slate-500 font-bold bg-slate-50 border px-2 py-0.5 rounded">Slice {{ currentSlice + 1 }} / 20</span>
-            </div>
-            
-            <div class="flex items-center gap-4">
-              <button 
-                @click="currentSlice > 0 && currentSlice--" 
-                :disabled="currentSlice === 0"
-                class="p-1.5 rounded-lg border border-slate-200 hover:border-teal-500 disabled:opacity-30"
-              >
-                <ChevronLeft class="w-4 h-4 text-slate-655" />
-              </button>
-              
-              <input 
-                v-model.number="currentSlice"
-                type="range" 
-                min="0" 
-                max="19" 
-                step="1"
-                class="w-full accent-teal-600 cursor-pointer bg-slate-100 h-1.5 rounded-full"
-              />
-              
-              <button 
-                @click="currentSlice < 19 && currentSlice++" 
-                :disabled="currentSlice === 19"
-                class="p-1.5 rounded-lg border border-slate-200 hover:border-teal-500 disabled:opacity-30"
-              >
-                <ChevronRight class="w-4 h-4 text-slate-655" />
-              </button>
-            </div>
-          </div>
+        <div class="lg:col-span-8">
+          <CTViewer 
+            :patient="activePatient"
+            v-model:currentSlice="currentSlice"
+            :ww="wwValue"
+            :wl="wlValue"
+            :maskOpacity="maskOpacity"
+            :showGroundTruth="showGroundTruth"
+            :showLesions="showLesions"
+          />
         </div>
 
-        <!-- Right Side: Manipulation sliders (4 cols) -->
-        <div class="lg:col-span-4 space-y-4">
-          <div class="frosted-glass-panel p-5 space-y-4">
-            <div class="section-title flex items-center gap-1.5"><Sliders class="w-3.5 h-3.5 text-teal-655" /> Contrast Calibration</div>
-            
-            <div class="space-y-3">
-              <div class="space-y-1">
-                <div class="flex justify-between items-center text-[9px] text-slate-500 font-bold">
-                  <span>Window Width</span>
-                  <span class="font-mono text-slate-800">{{ wwValue }} HU</span>
-                </div>
-                <input v-model.number="wwValue" type="range" min="100" max="800" step="10" class="w-full accent-teal-600 cursor-pointer bg-slate-100 h-1 rounded-full" />
-              </div>
-
-              <div class="space-y-1">
-                <div class="flex justify-between items-center text-[9px] text-slate-500 font-bold">
-                  <span>Window Level</span>
-                  <span class="font-mono text-slate-800">{{ wlValue }} HU</span>
-                </div>
-                <input v-model.number="wlValue" type="range" min="-100" max="200" step="5" class="w-full accent-teal-600 cursor-pointer bg-slate-100 h-1 rounded-full" />
-              </div>
-
-              <div class="space-y-1">
-                <div class="flex justify-between items-center text-[9px] text-slate-500 font-bold">
-                  <span>Mask Opacity</span>
-                  <span class="font-mono text-slate-800">{{ maskOpacity }}%</span>
-                </div>
-                <input v-model.number="maskOpacity" type="range" min="0" max="100" step="5" class="w-full accent-teal-600 cursor-pointer bg-slate-100 h-1 rounded-full" />
-              </div>
-            </div>
-
-            <div class="space-y-2 pt-3 border-t border-slate-150 border-slate-200/50">
-              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-                <input v-model="showGroundTruth" type="checkbox" class="rounded text-teal-600 focus:ring-teal-500 border-slate-350" />
-                <span>Show Ground Truth contour</span>
-              </label>
-              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-                <input v-model="showLesions" type="checkbox" class="rounded text-teal-600 focus:ring-teal-500 border-slate-350" />
-                <span>Highlight Focal Lesions</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="frosted-glass-panel p-5 flex flex-col justify-between min-h-[140px]">
-            <div class="space-y-2">
-              <div class="section-title">Proceed to Metrics</div>
-              <p class="text-[10px] text-slate-500 leading-normal font-semibold">
-                Contrast calibration is complete. Continue to evaluate voxel-based similarity metrics.
-              </p>
-            </div>
-            <button 
-              @click="currentStep = 5"
-              class="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-bold uppercase tracking-wider rounded-xl clinical-btn-primary active-shrink mt-4"
-            >
-              Analyze Metrics <ChevronRight class="w-3.5 h-3.5" />
-            </button>
-          </div>
+        <!-- Right Side Panel: Diagnostics & Contrast Sliders (4 cols) -->
+        <div class="lg:col-span-4">
+          <MetricsPanel 
+            :patient="activePatient"
+            v-model:ww="wwValue"
+            v-model:wl="wlValue"
+            v-model:opacity="maskOpacity"
+            v-model:showGroundTruth="showGroundTruth"
+            v-model:showLesions="showLesions"
+            @proceed="currentStep = 5"
+          />
         </div>
       </div>
 
