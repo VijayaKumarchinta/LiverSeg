@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppState } from '../../composables/useAppState'
 import { useAuthStore } from '../../stores/auth'
+import api from '../../api'
 import { 
   Users, 
   Activity, 
@@ -100,16 +101,76 @@ const clinicianNotes = ref("")
 // ==========================================
 // 5. TECHNICIAN VARIABLES
 // ==========================================
-const preprocQueue = ref([])
+const preprocQueue = computed(() => {
+  const list = []
+  uploadQueue.value.forEach(u => {
+    list.push({
+      file: u.filename,
+      format: u.type.toUpperCase(),
+      preproc: u.status === 'completed' ? 'Ingest complete' : 'Transferring payload...',
+      progress: u.progress
+    })
+  })
+  patients.value.forEach(p => {
+    list.push({
+      file: `${p.modality}_SCAN_${p.id}.nii.gz`,
+      format: 'NIfTI',
+      preproc: p.status === 'Completed' ? 'Normalisation complete' : p.status === 'Analyzing' ? 'Intensity windowing...' : 'Ready for analysis',
+      progress: p.status === 'Completed' ? 100 : p.status === 'Analyzing' ? 70 : 10
+    })
+  })
+  return list
+})
 
 const assignName = ref('PT-8841-K')
 const assignModality = ref('CT')
 const assignAge = ref(45)
 
 const handleAssign = () => {
-  simulateUpload('CT_SCAN_' + assignName.value + '.nii.gz', '42.0 MB', 'nifti')
+  const metadata = {
+    id: assignName.value,
+    name: 'Anonymous Patient',
+    age: assignAge.value || 45,
+    gender: 'Male',
+    dob: '1981-06-15',
+    modality: assignModality.value === 'CT' ? 'CT' : 'MRI'
+  }
+  simulateUpload('CT_SCAN_' + assignName.value + '.nii.gz', '42.0 MB', 'nifti', metadata)
   alert(`Assigned and queued ${assignName.value} modality to active workspace cache.`)
 }
+
+onMounted(async () => {
+  if (auth.userRole === 'admin') {
+    try {
+      const usersRes = await api.get('/users/')
+      if (usersRes.data) {
+        adminUsers.value = usersRes.data.map(u => ({
+          id: u.id,
+          name: `${u.first_name} ${u.last_name}`.trim() || u.username,
+          role: u.role,
+          status: u.status === 'active' ? 'Active' : 'Inactive'
+        }))
+
+        const allLogs = []
+        usersRes.data.forEach(u => {
+          if (u.activities && Array.isArray(u.activities)) {
+            u.activities.forEach(log => {
+              allLogs.push({
+                time: log.time,
+                user: `${u.first_name} ${u.last_name}`.trim() || u.username,
+                action: log.action + (log.details ? ` (${log.details})` : ''),
+                status: log.type === 'success' ? 'SUCCESS' : 'INFO'
+              })
+            })
+          }
+        })
+        adminLogs.value = allLogs
+      }
+    } catch (error) {
+      console.error('Error fetching admin data:', error)
+    }
+  }
+})
 </script>
 
 <template>
@@ -366,50 +427,15 @@ const handleAssign = () => {
     <div v-else-if="auth.userRole === 'admin'" class="space-y-6 animate-fade-in">
       
       <!-- Top KPIs -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 gap-4">
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Total Users Active</div>
-            <div class="text-xl font-extrabold text-slate-900">14 Doctors</div>
-            <div class="text-[10px] text-slate-500 font-bold">4 Departments Connected</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ adminUsers.length }} Users</div>
+            <div class="text-[10px] text-slate-500 font-bold">{{ new Set(adminUsers.map(u => u.role)).size }} Roles Configured</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
             <Users class="w-4.5 h-4.5" />
-          </div>
-        </div>
-
-        <div class="frosted-glass-panel p-4 flex items-center justify-between">
-          <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Platform Network Load</div>
-            <div class="text-xl font-extrabold text-slate-900">421.5 Mbps</div>
-            <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-              <CheckCircle class="w-3 h-3" /> PACS routing stable
-            </div>
-          </div>
-          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-            <Server class="w-4.5 h-4.5" />
-          </div>
-        </div>
-
-        <div class="frosted-glass-panel p-4 flex items-center justify-between">
-          <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">AI GPU Utilisation</div>
-            <div class="text-xl font-extrabold text-slate-900">48.2% Average</div>
-            <div class="text-[10px] text-slate-500 font-bold">Running model inference</div>
-          </div>
-          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-            <Activity class="w-4.5 h-4.5" />
-          </div>
-        </div>
-
-        <div class="frosted-glass-panel p-4 flex items-center justify-between">
-          <div class="space-y-1">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compliance Audit status</div>
-            <div class="text-xl font-extrabold text-slate-900">100% Verified</div>
-            <div class="text-[10px] text-slate-500 font-bold">HIPAA Compliant trace log</div>
-          </div>
-          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-            <CheckCircle class="w-4.5 h-4.5" />
           </div>
         </div>
       </div>
@@ -431,7 +457,6 @@ const handleAssign = () => {
                   <tr class="bg-slate-50/50 border-b border-slate-200/50 text-slate-500 font-bold">
                     <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">User Account</th>
                     <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Role Assigned</th>
-                    <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Active Department</th>
                     <th class="px-5 py-2.5 font-bold text-[9px] uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
@@ -439,7 +464,6 @@ const handleAssign = () => {
                   <tr v-for="user in adminUsers" :key="user.id">
                     <td class="px-5 py-3 font-bold text-slate-800">{{ user.name }}</td>
                     <td class="px-5 py-3 font-mono text-[10px] text-slate-500 font-bold">{{ user.role }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ user.dept }}</td>
                     <td class="px-5 py-3">
                       <span :class="user.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'" class="px-2 py-0.5 rounded text-[9px] font-bold">
                         {{ user.status }}
@@ -557,7 +581,7 @@ const handleAssign = () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Dataset Volume</div>
-            <div class="text-xl font-extrabold text-slate-900">350 patients</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ patients.length }} cases</div>
             <div class="text-[10px] text-slate-500 font-bold">L3-L4 axial segmentation</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shadow-sm">
@@ -781,8 +805,8 @@ const handleAssign = () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Scans Ingested Today</div>
-            <div class="text-xl font-extrabold text-slate-900">4 Volumes</div>
-            <div class="text-[10px] text-slate-500 font-bold">128 MB total caching footprint</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ patients.length }} Volumes</div>
+            <div class="text-[10px] text-slate-500 font-bold">{{ (patients.length * 48.2).toFixed(1) }} MB total caching footprint</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
             <UploadCloud class="w-4.5 h-4.5" />
@@ -792,9 +816,9 @@ const handleAssign = () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Pending Assignments</div>
-            <div class="text-xl font-extrabold text-slate-900">0 Scans</div>
-            <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-              <CheckCircle class="w-3 h-3" /> Queue fully assigned
+            <div class="text-xl font-extrabold text-slate-900">{{ patients.filter(p => p.status === 'Ready').length }} Scans</div>
+            <div :class="patients.filter(p => p.status === 'Ready').length > 0 ? 'text-amber-600' : 'text-emerald-600'" class="text-[10px] font-bold flex items-center gap-0.5">
+              <CheckCircle class="w-3 h-3" /> {{ patients.filter(p => p.status === 'Ready').length > 0 ? 'Scans pending analysis' : 'Queue fully processed' }}
             </div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">
@@ -805,7 +829,7 @@ const handleAssign = () => {
         <div class="frosted-glass-panel p-4 flex items-center justify-between">
           <div class="space-y-1">
             <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Preprocessing Load</div>
-            <div class="text-xl font-extrabold text-slate-900">1 Queue Active</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ uploadQueue.filter(u => u.status === 'uploading').length + patients.filter(p => p.status === 'Analyzing').length }} Active</div>
             <div class="text-[10px] text-slate-500 font-bold">Automatic intensity normalization</div>
           </div>
           <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shadow-sm">

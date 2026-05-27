@@ -46,50 +46,15 @@ onMounted(async () => {
   <div class="space-y-6 animate-fade-in">
     
     <!-- Top KPIs -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <div class="frosted-glass-panel p-4 flex items-center justify-between">
         <div class="space-y-1">
           <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Total Users Active</div>
-          <div class="text-xl font-extrabold text-slate-900">14 Doctors</div>
-          <div class="text-[10px] text-slate-500 font-bold">5 Roles Configured</div>
+          <div class="text-xl font-extrabold text-slate-900">{{ adminUsers.length }} Users</div>
+          <div class="text-[10px] text-slate-500 font-bold">{{ new Set(adminUsers.map(u => u.role)).size }} Roles Configured</div>
         </div>
         <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
           <Users class="w-4.5 h-4.5" />
-        </div>
-      </div>
-
-      <div class="frosted-glass-panel p-4 flex items-center justify-between">
-        <div class="space-y-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Platform Network Load</div>
-          <div class="text-xl font-extrabold text-slate-900">421.5 Mbps</div>
-          <div class="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
-            <CheckCircle class="w-3 h-3" /> PACS routing stable
-          </div>
-        </div>
-        <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-          <Server class="w-4.5 h-4.5" />
-        </div>
-      </div>
-
-      <div class="frosted-glass-panel p-4 flex items-center justify-between">
-        <div class="space-y-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">AI GPU Utilisation</div>
-          <div class="text-xl font-extrabold text-slate-900">48.2% Average</div>
-          <div class="text-[10px] text-slate-500 font-bold">Running model inference</div>
-        </div>
-        <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-          <Activity class="w-4.5 h-4.5" />
-        </div>
-      </div>
-
-      <div class="frosted-glass-panel p-4 flex items-center justify-between">
-        <div class="space-y-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compliance Audit status</div>
-          <div class="text-xl font-extrabold text-slate-900">100% Verified</div>
-          <div class="text-[10px] text-slate-500 font-bold">HIPAA Compliant trace log</div>
-        </div>
-        <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shadow-sm">
-          <CheckCircle class="w-4.5 h-4.5" />
         </div>
       </div>
     </div>

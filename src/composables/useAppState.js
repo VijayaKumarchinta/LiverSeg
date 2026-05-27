@@ -68,6 +68,7 @@ const mapPatientToCamelCase = (patient) => {
     scanDate: patient.scan_date,
     hasLesions: patient.has_lesions,
     lesionVolume: patient.lesion_volume,
+    hasFile: patient.has_file,
     slices: patient.slices ? patient.slices.map(mapSliceToCamelCase) : []
   }
 }
@@ -154,7 +155,7 @@ export function useAppState() {
     }, 500)
   }
 
-  const simulateUpload = (filename, size, type) => {
+  const simulateUpload = (filename, size, type, metadata = null) => {
     uploadQueue.value.push({ filename, size, type, progress: 0, status: 'uploading' })
     const qIndex = uploadQueue.value.length - 1
 
@@ -177,36 +178,76 @@ export function useAppState() {
         })
         saveActivities()
         
-        // Add to patients list and persist in DB
-        const newId = `PT-${Math.floor(Math.random() * 9000) + 1000}-X`
+        // If an active patient exists and does not have a scan file, associate it
+        if (activePatient.value && !activePatient.value.hasFile) {
+          const pIndex = patients.value.findIndex(p => p.id === activePatient.value.id)
+          if (pIndex !== -1) {
+            patients.value[pIndex].hasFile = true
+            patients.value[pIndex].slices = Array(20).fill(0).map((_, idx) => {
+              const xShift = Math.sin(idx / 3) * 6
+              const yShift = Math.cos(idx / 2.5) * 5
+              const hasLesion = idx >= 8 && idx <= 13
+              return {
+                sliceIndex: idx,
+                liverSize: idx < 3 || idx > 17 ? 0 : (10 - Math.abs(10 - idx)) * 4 + 30,
+                liverX: xShift,
+                liverY: yShift,
+                lesionSize: hasLesion ? 0.35 + Math.sin(idx) * 0.1 : 0,
+                lesionX: hasLesion ? xShift + 5 : 0,
+                lesionY: hasLesion ? yShift - 8 : 0
+              }
+            })
+            
+            api.patch(`/patients/${activePatient.value.id}/`, {
+              has_file: true,
+              slices: patients.value[pIndex].slices.map(s => ({
+                slice_index: s.sliceIndex,
+                liver_size: s.liverSize,
+                liver_x: s.liverX,
+                liver_y: s.liverY,
+                lesion_size: s.lesionSize,
+                lesion_x: s.lesionX,
+                lesion_y: s.lesionY
+              }))
+            }).catch(err => console.error('Error updating patient has_file:', err))
+            return
+          }
+        }
+
+        // Otherwise, create a new patient case
+        const newId = metadata?.id || `PT-${Math.floor(Math.random() * 9000) + 1000}-X`
         const newPatient = {
           id: newId,
-          name: 'Anonymous Patient',
-          gender: 'Unknown',
-          age: 0,
-          dob: '2026-01-01',
-          modality: type === 'dicom' ? 'CT' : 'MRI',
+          name: metadata?.name || 'Anonymous Patient',
+          gender: metadata?.gender || 'Unknown',
+          age: metadata?.age || 0,
+          dob: metadata?.dob || '2026-01-01',
+          modality: metadata?.modality || (type === 'dicom' ? 'CT' : 'MRI'),
           status: 'Ready',
+          has_file: true,
           has_lesions: false,
           lesion_volume: '—',
           metrics: { dice: '—', volume: '—' },
-          slices: Array(20).fill(0).map((_, idx) => ({
-            slice_index: idx,
-            liver_size: 0,
-            liver_x: 0,
-            liver_y: 0,
-            lesion_size: 0,
-            lesion_x: 0,
-            lesion_y: 0
-          }))
+          slices: Array(20).fill(0).map((_, idx) => {
+            const xShift = Math.sin(idx / 3) * 6
+            const yShift = Math.cos(idx / 2.5) * 5
+            const hasLesion = idx >= 8 && idx <= 13
+            return {
+              slice_index: idx,
+              liver_size: idx < 3 || idx > 17 ? 0 : (10 - Math.abs(10 - idx)) * 4 + 30,
+              liver_x: xShift,
+              liver_y: yShift,
+              lesion_size: hasLesion ? 0.35 + Math.sin(idx) * 0.1 : 0,
+              lesion_x: hasLesion ? xShift + 5 : 0,
+              lesion_y: hasLesion ? yShift - 8 : 0
+            }
+          })
         }
 
         api.post('/patients/', newPatient).then(res => {
           if (res.data) {
             patients.value.unshift(mapPatientToCamelCase(res.data))
-            if (!activePatientId.value) {
-              activePatientId.value = newId
-            }
+            activePatientId.value = newId
           }
         }).catch(err => console.error('Error saving patient to backend:', err))
       }

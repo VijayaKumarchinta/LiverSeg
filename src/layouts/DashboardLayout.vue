@@ -217,26 +217,11 @@ onUnmounted(() => document.removeEventListener('click', closeDropdowns))
             <h1 class="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate">
               {{ route.meta?.title || 'Clinical Workstation' }}
             </h1>
-            <div class="text-[9px] text-slate-400 font-semibold">
-              LiversegAI v2.5 · Radiology Suite · <span class="text-teal-600">PACS_NODE_4</span>
-            </div>
           </div>
         </div>
 
         <!-- Right: Controls -->
         <div class="flex items-center gap-3 flex-shrink-0">
-
-          <!-- PACS Node Status -->
-          <div class="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/60">
-            <Wifi class="w-3 h-3 text-teal-500" />
-            <span class="text-[9px] font-bold text-slate-600">PACS: <span class="text-teal-600">LIVERSEG_AI_AE</span></span>
-          </div>
-
-          <!-- GPU Status -->
-          <div class="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/60">
-            <Cpu class="w-3 h-3 text-sky-500" />
-            <span class="text-[9px] font-bold text-slate-600">GPU: <span class="text-sky-600">48% · T4</span></span>
-          </div>
 
           <!-- Notifications -->
           <div class="relative notif-zone">
