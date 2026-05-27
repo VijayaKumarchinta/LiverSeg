@@ -249,9 +249,8 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 10px;
   height: 10px;
-  background: #f9fbfc;
-border: 1px solid #e6eef2;
-border-radius: 14px;
+  border-radius: 50%;
+  background: #0d9488;
   cursor: pointer;
 }
 </style>
