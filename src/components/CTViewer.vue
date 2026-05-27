@@ -62,9 +62,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import ctSlice from '../assets/medical/ct-slice.png'
+import liverMask from '../assets/medical/liver-mask.png'
 
-const currentSlice = ref('/samples/ct-slice.png')
-const currentMask = ref('/samples/liver-mask.png')
+const currentSlice = ref(ctSlice)
+const currentMask = ref(liverMask)
 
 const currentSliceIndex = ref(11)
 
