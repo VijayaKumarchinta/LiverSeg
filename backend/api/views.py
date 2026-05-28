@@ -14,7 +14,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.throttling import ScopedRateThrottle
 from django.contrib.auth import authenticate
 from django.http import HttpResponse, FileResponse, Http404, JsonResponse
-
+from django.conf import settings
 from .models import User, Patient
 from .serializers import UserSerializer, PatientSerializer
 from .permissions import IsAdminRole, IsRadiologistOrAdmin
@@ -38,6 +38,14 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+
+        user = self.request.user
+        if user.role == 'admin':
+            return User.objects.all()
+
+        return User.objects.filter(id=user.id)
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -76,9 +84,14 @@ class UserViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
-            throttle_classes=[ScopedRateThrottle], throttle_scope='login')
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[permissions.AllowAny],
+        throttle_classes=[ScopedRateThrottle],
+    )
     def login(self, request):
+        self.throttle_scope = 'login'
         username = request.data.get('username')
         password = request.data.get('password')
 
@@ -144,6 +157,7 @@ class PatientViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    if not settings.DEBUG: return Response( { "error": ( "AI segmentation is not validated " "for clinical diagnostic use." ) }, status=status.HTTP_503_SERVICE_UNAVAILABLE )
 
     # ── POST /api/patients/{id}/upload_scan/ ─────────────────────────────
     @action(

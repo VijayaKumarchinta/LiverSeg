@@ -18,7 +18,14 @@ load_dotenv(BASE_DIR.parent / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable must be set.")
-
+if not DEBUG: 
+    SECURE_SSL_REDIRECT = True 
+    SESSION_COOKIE_SECURE = True 
+    CSRF_COOKIE_SECURE = True
+else: 
+    SECURE_SSL_REDIRECT = False 
+    SESSION_COOKIE_SECURE = False 
+    CSRF_COOKIE_SECURE = False
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -86,7 +93,6 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': _db_options,
         'CONN_MAX_AGE': 60,
     }
 }
@@ -108,6 +114,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '20/hour',
@@ -128,13 +135,13 @@ SIMPLE_JWT = {
 
 # ── HTTPS / Security Headers (production only) ────────────────────────────────
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Strict'

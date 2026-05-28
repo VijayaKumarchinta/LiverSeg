@@ -17,8 +17,10 @@ frontend/.env.local
 # PYTHON / DJANGO
 # ─────────────────────────────────────────────
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
+.env.production
 
 venv/
 .venv/
