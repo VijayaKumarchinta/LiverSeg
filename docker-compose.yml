@@ -8,58 +8,91 @@ services:
     environment:
       - POSTGRES_DB=${DB_NAME:-liverseg_db}
       - POSTGRES_USER=${DB_USER:-liverseg_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-Vijay30390}
-    ports:
-      - "5433:5432" # Exposed on 5433 to avoid conflicts if local pg is running
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    # No ports: section — DB is not exposed to the host or public internet
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-liverseg_user}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
+    # No ports: section — Redis is not exposed to the host or public internet
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: gunicorn --bind 0.0.0.0:8000 core.wsgi:application
     volumes:
       - media_volume:/app/media
       - static_volume:/app/staticfiles
+      - logs_volume:/var/log/liverseg
     environment:
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-liverseg_db}
       - DB_USER=${DB_USER:-liverseg_user}
-      - DB_PASSWORD=${DB_PASSWORD:-Vijay30390}
+      - DB_PASSWORD=${DB_PASSWORD}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=False
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
-      - CORS_ALLOWED_ORIGINS=http://localhost
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
 
   celery:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A core worker -l info
+    command: celery -A core worker -l info --concurrency=4
     volumes:
       - media_volume:/app/media
+      - logs_volume:/var/log/liverseg
     environment:
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-liverseg_db}
       - DB_USER=${DB_USER:-liverseg_user}
-      - DB_PASSWORD=${DB_PASSWORD:-Vijay30390}
+      - DB_PASSWORD=${DB_PASSWORD}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
     depends_on:
-      - backend
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
 
   frontend:
     build:
@@ -69,7 +102,6 @@ services:
       - "80:80"
     volumes:
       - static_volume:/usr/share/nginx/html/static
-      - media_volume:/usr/share/nginx/html/media
     depends_on:
       - backend
 
@@ -77,3 +109,4 @@ volumes:
   postgres_data:
   media_volume:
   static_volume:
+  logs_volume:
