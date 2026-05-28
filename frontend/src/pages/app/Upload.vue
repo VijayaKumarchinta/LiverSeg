@@ -16,6 +16,7 @@ const router = useRouter()
 const {
   uploadQueue,
   simulateUpload,
+  realUpload,
   patients,
   activePatient,
   selectPatient,
@@ -24,6 +25,8 @@ const {
   inferenceProgress,
   inferenceStage
 } = useAppState()
+
+const uploadError = ref('')
 
 const currentStep = ref(1)
 
@@ -84,20 +87,32 @@ const handleDragLeave = () => { isDragging.value = false }
 const handleDrop = (e) => { e.preventDefault(); isDragging.value = false; processFiles(e.dataTransfer.files) }
 const handleFileSelect = (e) => processFiles(e.target.files)
 
-const processFiles = (files) => {
+const processFiles = async (files) => {
+  uploadError.value = ''
   for (const file of files) {
     const filename = file.name.toLowerCase()
     let type = 'unknown'
     if (filename.endsWith('.dcm')) type = 'dicom'
     else if (filename.endsWith('.nii') || filename.endsWith('.nii.gz')) type = 'nifti'
     else if (filename.endsWith('.pdf')) type = 'pdf'
-    
+
     if (type === 'unknown') {
       const ext = filename.split('.').pop()
-      alert(`Format .${ext} not supported.`)
+      uploadError.value = `Format .${ext} not supported. Use .nii, .nii.gz, or .dcm.`
       continue
     }
-    simulateUpload(file.name, (file.size / 1048576).toFixed(1) + ' MB', type)
+
+    if (activePatient.value) {
+      // Real upload: send actual file bytes to backend
+      try {
+        await realUpload(file, activePatient.value.id)
+      } catch (err) {
+        uploadError.value = err.response?.data?.error || 'Upload failed. Please try again.'
+      }
+    } else {
+      // No patient selected — use demo simulation
+      simulateUpload(file.name, (file.size / 1048576).toFixed(1) + ' MB', type)
+    }
   }
 }
 
@@ -309,6 +324,25 @@ const navigateToStep = (stepId) => {
                 DICOM (.dcm) · NIfTI (.nii/.nii.gz) · PDF Reports
               </div>
             </label>
+          </div>
+
+          <!-- Upload error display -->
+          <div v-if="uploadError" class="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold">
+            <AlertCircle class="w-4 h-4 flex-shrink-0" />
+            {{ uploadError }}
+            <button @click="uploadError = ''" class="ml-auto text-rose-400 hover:text-rose-600">✕</button>
+          </div>
+
+          <!-- Upload mode indicator -->
+          <div class="flex items-center gap-2 text-[9px] font-semibold">
+            <span v-if="activePatient" class="flex items-center gap-1.5 text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full">
+              <span class="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
+              Real upload mode — files sent to backend for patient {{ activePatient.id }}
+            </span>
+            <span v-else class="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">
+              <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+              Demo mode — select a patient above to enable real upload
+            </span>
           </div>
 
           <!-- Shortcuts -->

@@ -2,15 +2,15 @@
 import { ref, computed, watch } from 'vue'
 import { useAppState } from '../../composables/useAppState'
 import api from '../../api'
-import { 
-  Play, 
-  CheckCircle, 
-  RotateCcw, 
-  Sliders, 
-  Layers, 
-  Share2, 
-  Activity, 
-  Loader2, 
+import {
+  Play,
+  CheckCircle,
+  RotateCcw,
+  Sliders,
+  Layers,
+  Share2,
+  Activity,
+  Loader2,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
@@ -20,20 +20,20 @@ import {
   HeartPulse,
   BrainCircuit,
   Eye,
-  SlidersHorizontal,
-  FolderOpen
+  SlidersHorizontal
 } from 'lucide-vue-next'
 
-const { 
-  activePatient, 
-  patients, 
-  selectPatient, 
-  runSegmentation, 
-  isInferenceRunning, 
-  inferenceProgress, 
+const {
+  activePatient,
+  patients,
+  selectPatient,
+  runSegmentation,
+  isInferenceRunning,
+  inferenceProgress,
   inferenceStage,
   uploadQueue,
-  simulateUpload
+  simulateUpload,
+  realUpload
 } = useAppState()
 
 // Viewer Controls
@@ -160,23 +160,33 @@ const handleFileSelect = (e) => {
   processFiles(e.target.files)
 }
 
-const processFiles = (files) => {
+const processFiles = async (files) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     const ext = file.name.split('.').pop().toLowerCase()
-    
+
     let type = 'unknown'
     if (ext === 'dcm') type = 'dicom'
     else if (ext === 'nii' || file.name.endsWith('.nii.gz')) type = 'nifti'
     else if (ext === 'pdf') type = 'pdf'
-    
+
     if (type === 'unknown') {
       alert(`Format .${ext} is not supported. Please upload NIfTI (.nii/.nii.gz), DICOM (.dcm), or PDF.`)
       continue
     }
 
-    const sizeStr = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
-    simulateUpload(file.name, sizeStr, type)
+    if (activePatient.value) {
+      // Real upload: send actual file bytes to backend
+      try {
+        await realUpload(file, activePatient.value.id)
+      } catch (err) {
+        console.error('Upload failed in Analysis workspace:', err.response?.data || err.message)
+      }
+    } else {
+      // No patient selected — use demo simulation
+      const sizeStr = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+      simulateUpload(file.name, sizeStr, type)
+    }
   }
 }
 
@@ -400,9 +410,42 @@ watch(inferenceStage, (newStage) => {
           <div class="absolute left-3 text-[10px] font-bold font-mono text-slate-500 pointer-events-none z-10">R</div>
           <div class="absolute right-3 text-[10px] font-bold font-mono text-slate-500 pointer-events-none z-10">L</div>
 
+
           <!-- Slider Split Comparison Container -->
           <div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-            
+
+            <!-- ══ REAL IMAGE MODE (when backend scan is available) ══ -->
+            <template v-if="activePatient.ctScanUrl">
+
+              <!-- UNDERLAYER: Raw CT scan image -->
+              <div class="absolute inset-0">
+                <img
+                  :src="activePatient.ctScanUrl"
+                  class="w-full h-full object-cover"
+                  :style="ctFilterStyle"
+                  alt="CT Scan"
+                />
+              </div>
+
+              <!-- OVERLAYER: Mask image (clipped to left side of slider) -->
+              <div
+                v-if="activePatient.liverMaskUrl && activePatient.status === 'Completed'"
+                class="absolute inset-0 overflow-hidden pointer-events-none"
+                :style="{ clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)` }"
+              >
+                <img
+                  :src="activePatient.liverMaskUrl"
+                  class="w-full h-full object-cover mix-blend-screen"
+                  :style="{ opacity: maskOpacity / 100 }"
+                  alt="Liver Mask"
+                />
+              </div>
+
+            </template>
+
+            <!-- ══ SVG DEMO MODE (no real scan uploaded yet) ══ -->
+            <template v-else>
+
             <!-- UNDERLAYER: RAW CT SCAN (Right-hand side view) -->
             <div class="absolute inset-0 flex items-center justify-center">
               <svg viewBox="0 0 100 100" class="w-full h-full" :style="ctFilterStyle">
@@ -581,7 +624,7 @@ watch(inferenceStage, (newStage) => {
             </div>
 
             <!-- DRAGGABLE SLIDER LINE AND HANDLE -->
-            <div 
+            <div
               class="absolute top-0 bottom-0 w-[1.5px] bg-teal-500 z-20 pointer-events-none"
               :style="{ left: `${sliderPosition}%` }"
             >
@@ -591,14 +634,19 @@ watch(inferenceStage, (newStage) => {
             </div>
 
             <!-- INVISIBLE RANGE INPUT OVERLAY -->
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
+            <input
+              type="range"
+              min="0"
+              max="100"
               v-model.number="sliderPosition"
               class="absolute inset-0 opacity-0 cursor-ew-resize z-30 w-full h-full"
             />
+
+            </template>
+            <!-- ══ END SVG DEMO MODE ══ -->
+
           </div>
+          <!-- END Slider Split Comparison Container -->
 
           <!-- Warning overlay if case is not yet segmented -->
           <div 

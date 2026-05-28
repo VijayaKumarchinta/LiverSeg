@@ -1,10 +1,12 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, Patient
 from .serializers import UserSerializer, PatientSerializer
 from django.contrib.auth import authenticate
+
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -13,6 +15,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get', 'put', 'patch'])
     def me(self, request):
+        if request.method == 'GET':
+            serializer = self.get_serializer(request.user)
+            return Response(serializer.data)
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -42,7 +47,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def login(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
-        
+
         user = authenticate(username=username, password=password)
         if user:
             refresh = RefreshToken.for_user(user)
@@ -64,10 +69,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
         username = request.data.get('username')
         new_password = request.data.get('new_password')
-        
+
         if not username or not new_password:
             return Response({'error': 'Username and new password are required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         try:
             user = User.objects.get(username=username)
             user.set_password(new_password)
@@ -76,7 +81,267 @@ class UserViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+
 class PatientViewSet(viewsets.ModelViewSet):
-    queryset = Patient.objects.all()
+    queryset = Patient.objects.all().order_by('-scan_date')
     serializer_class = PatientSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_context(self):
+        """Pass request to serializer so it can build absolute URLs."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    # ── POST /api/patients/{id}/upload_scan/ ─────────────────────────────
+    @action(
+        detail=True,
+        methods=['post'],
+        parser_classes=[MultiPartParser, FormParser],
+        url_path='upload_scan'
+    )
+    def upload_scan(self, request, pk=None):
+        """
+        Upload a CT scan file (.nii, .nii.gz, .dcm) for a patient.
+        The file is stored in media/ct_scans/ and the patient record is updated.
+        """
+        patient = self.get_object()
+
+        ct_file = request.FILES.get('ct_scan')
+        if not ct_file:
+            return Response(
+                {'error': 'No file provided. Send file as multipart field named "ct_scan".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file extension
+        allowed_extensions = ['.nii', '.gz', '.dcm', '.nii.gz']
+        filename = ct_file.name.lower()
+        if not any(filename.endswith(ext) for ext in allowed_extensions):
+            return Response(
+                {'error': f'Unsupported format. Allowed: .nii, .nii.gz, .dcm'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Save old file reference for cleanup if needed
+        if patient.ct_scan:
+            patient.ct_scan.delete(save=False)
+
+        patient.ct_scan = ct_file
+        patient.has_file = True
+        patient.status = 'Ready'
+        patient.save()
+
+        serializer = self.get_serializer(patient)
+        return Response({
+            'message': f'CT scan uploaded successfully for patient {patient.id}',
+            'ct_scan_url': serializer.data.get('ct_scan_url'),
+            'patient': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    # ── POST /api/patients/{id}/upload_mask/ ─────────────────────────────
+    @action(
+        detail=True,
+        methods=['post'],
+        parser_classes=[MultiPartParser, FormParser],
+        url_path='upload_mask'
+    )
+    def upload_mask(self, request, pk=None):
+        """
+        Upload a liver segmentation mask image for a patient.
+        Stored in media/liver_masks/.
+        """
+        patient = self.get_object()
+
+        mask_file = request.FILES.get('liver_mask')
+        if not mask_file:
+            return Response(
+                {'error': 'No file provided. Send file as multipart field named "liver_mask".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if patient.liver_mask:
+            patient.liver_mask.delete(save=False)
+
+        patient.liver_mask = mask_file
+        patient.save()
+
+        serializer = self.get_serializer(patient)
+        return Response({
+            'message': f'Liver mask uploaded successfully for patient {patient.id}',
+            'liver_mask_url': serializer.data.get('liver_mask_url'),
+            'patient': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    # ── POST /api/patients/{id}/upload_preview/ ───────────────────────────
+    @action(
+        detail=True,
+        methods=['post'],
+        parser_classes=[MultiPartParser, FormParser],
+        url_path='upload_preview'
+    )
+    def upload_preview(self, request, pk=None):
+        """
+        Upload a preview thumbnail image (.png, .jpg) for UI display.
+        Stored in media/preview_images/.
+        """
+        patient = self.get_object()
+
+        preview_file = request.FILES.get('preview_image')
+        if not preview_file:
+            return Response(
+                {'error': 'No file provided. Send file as multipart field named "preview_image".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if patient.preview_image:
+            patient.preview_image.delete(save=False)
+
+        patient.preview_image = preview_file
+        patient.save()
+
+        serializer = self.get_serializer(patient)
+        return Response({
+            'message': f'Preview image uploaded successfully for patient {patient.id}',
+            'preview_image_url': serializer.data.get('preview_image_url'),
+            'patient': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    # ── POST /api/patients/{id}/run_segmentation/ ─────────────────────────
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='run_segmentation'
+    )
+    def run_segmentation(self, request, pk=None):
+        """
+        Trigger AI liver segmentation for a patient's CT scan.
+
+        Current implementation: mock response that updates status.
+        Future: calls PyTorch/MONAI inference service via Celery task.
+
+        Returns:
+            - status: 'Analyzing' (processing started)
+            - message: description of what was triggered
+        """
+        patient = self.get_object()
+
+        if not patient.ct_scan and not patient.has_file:
+            return Response(
+                {'error': 'No CT scan uploaded for this patient. Upload a scan first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if patient.status == 'Analyzing':
+            return Response(
+                {'error': 'Segmentation is already running for this patient.'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # ── Phase 6: Asynchronous AI Segmentation via Celery ───────────────
+        from .tasks import segment_liver
+        
+        patient.status = 'Analyzing'
+        patient.save()
+        
+        # Trigger the Celery background worker
+        task = segment_liver.delay(patient.id)
+
+        return Response({
+            'status': 'Analyzing',
+            'patient_id': patient.id,
+            'task_id': task.id,
+            'message': (
+                'Segmentation initiated. The AI pipeline is processing the CT volume in the background. '
+                'Poll GET /api/patients/{id}/ to check status. '
+                'Status will update to "Completed" when done.'
+            )
+        }, status=status.HTTP_202_ACCEPTED)
+
+    # ── GET /api/patients/{id}/slice/?index={i}&type={ct|mask} ───────────
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='slice'
+    )
+    def get_slice(self, request, pk=None):
+        """
+        Extract a specific axial slice from a NIfTI volume and return as PNG.
+        Parameters:
+        - index: integer (axial slice index, default 0)
+        - type: 'ct' or 'mask' (default 'ct')
+        - ww: window width (default 400)
+        - wl: window level (default 40)
+        """
+        import os
+        import nibabel as nib
+        import numpy as np
+        from PIL import Image
+        from io import BytesIO
+        from django.http import HttpResponse
+
+        patient = self.get_object()
+        slice_idx = int(request.query_params.get('index', 0))
+        img_type = request.query_params.get('type', 'ct')
+        
+        if img_type == 'ct':
+            if not patient.ct_scan:
+                return Response({'error': 'No CT scan available.'}, status=404)
+            file_path = patient.ct_scan.path
+        else:
+            if not patient.liver_mask:
+                return Response({'error': 'No mask available.'}, status=404)
+            file_path = patient.liver_mask.path
+            
+        if not os.path.exists(file_path):
+            return Response({'error': 'File not found on disk.'}, status=404)
+            
+        try:
+            img = nib.load(file_path)
+            data = img.get_fdata()
+            
+            # Bound index
+            if slice_idx < 0:
+                slice_idx = 0
+            if slice_idx >= data.shape[2]:
+                slice_idx = data.shape[2] - 1
+                
+            # Extract axial slice (assumes shape [X, Y, Z] where Z is axial)
+            slice_data = data[:, :, slice_idx]
+            
+            # Rotate/flip if needed depending on NIfTI orientation to standard
+            slice_data = np.rot90(slice_data)
+            
+            if img_type == 'ct':
+                # Apply WW/WL for CT
+                ww = float(request.query_params.get('ww', 400))
+                wl = float(request.query_params.get('wl', 40))
+                vmin = wl - (ww / 2)
+                vmax = wl + (ww / 2)
+                
+                slice_data = np.clip(slice_data, vmin, vmax)
+                slice_data = (slice_data - vmin) / (vmax - vmin) * 255.0
+                slice_data = slice_data.astype(np.uint8)
+                image = Image.fromarray(slice_data, mode='L')
+            else:
+                # Mask (classes 0, 1=liver, 2=lesion)
+                color_map = {
+                    0: [0, 0, 0, 0],         # Transparent bg
+                    1: [15, 118, 110, 255],  # Teal-600 liver
+                    2: [225, 29, 72, 255]    # Rose-600 lesion
+                }
+                rgba = np.zeros((slice_data.shape[0], slice_data.shape[1], 4), dtype=np.uint8)
+                for class_val, color in color_map.items():
+                    rgba[slice_data == class_val] = color
+                image = Image.fromarray(rgba, mode='RGBA')
+                
+            buffer = BytesIO()
+            image.save(buffer, format="PNG")
+            buffer.seek(0)
+            
+            return HttpResponse(buffer, content_type='image/png')
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
