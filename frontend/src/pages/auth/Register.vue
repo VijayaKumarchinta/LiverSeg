@@ -9,7 +9,6 @@ const auth = useAuthStore()
 
 const name = ref('')
 const username = ref('')
-const hospital = ref('')
 const role = ref('radiologist')
 const password = ref('')
 const showPassword = ref(false)
@@ -26,7 +25,7 @@ const handleRegister = async () => {
   isLoading.value = true
   error.value = ''
   await new Promise(r => setTimeout(r, 600))
-  const success = await auth.register(name.value, username.value, hospital.value || 'St. Luke Medical Center', role.value, password.value)
+  const success = await auth.register(name.value, username.value, role.value, password.value)
   isLoading.value = false
   if (success) {
     router.push('/app')
@@ -206,16 +205,6 @@ const handleRegister = async () => {
                 </button>
               </div>
             </div>
-          </div>
-
-          <div>
-            <label class="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Hospital / Organization</label>
-            <input 
-              v-model="hospital" 
-              type="text" 
-              placeholder="St. Luke Medical Center" 
-              class="clinical-input w-full px-3.5 py-2.5 text-xs font-semibold" 
-            />
           </div>
 
           <!-- Error Alert -->

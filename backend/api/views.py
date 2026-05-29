@@ -147,7 +147,11 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[permissions.AllowAny]
+    )
     def register(self, request):
         data = request.data
         try:

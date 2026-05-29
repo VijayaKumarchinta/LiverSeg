@@ -75,9 +75,9 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
-  async function register(name, username, hospital, role, password) {
+  async function register(name, username, role, password) {
     try {
-      const res = await api.post('/users/register/', { name, username, hospital, role, password })
+      const res = await api.post('/users/register/', { name, username, role, password })
       if (res.data) {
         const data = res.data
         access.value = data.access

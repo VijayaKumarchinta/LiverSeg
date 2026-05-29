@@ -13,7 +13,7 @@ class AuditMiddleware:
         response = self.get_response(request)
         if any(request.path.startswith(p) for p in self.PHI_PATHS):
             audit_logger.info(json.dumps({
-                'user': str(request.user),
+                'user': str(getattr(request, "user", "anonymous")),
                 'method': request.method,
                 'path': request.path,
                 'ip': self.get_client_ip(request),
