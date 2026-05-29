@@ -11,17 +11,22 @@ class UserSerializer(serializers.ModelSerializer):
 
         request = self.context.get('request')
 
-        if request:
+        if not request:
+            return data
 
-            # Non-admins should not see PACS internals
-            if request.user.role != 'admin':
-                data.pop('pacs_config', None)
+        user = getattr(request, 'user', None)
 
-            # Hide activity audit trail from non-admins
-            if request.user.role != 'admin':
-                data.pop('activities', None)
+        if not user or not user.is_authenticated:
+            data.pop('pacs_config', None)
+            data.pop('activities', None)
+            return data
+
+        if getattr(user, 'role', None) != 'admin':
+            data.pop('pacs_config', None)
+            data.pop('activities', None)
 
         return data
+
 class PatientSerializer(serializers.ModelSerializer):
     # Return absolute URLs for file fields so the frontend can use them directly
     ct_scan_url = serializers.SerializerMethodField()

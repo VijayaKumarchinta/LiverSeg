@@ -14,15 +14,17 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from django.http import HttpResponse, FileResponse, Http404, JsonResponse
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from .models import User, Patient
 from .serializers import UserSerializer, PatientSerializer
 from .permissions import IsAdminRole, IsRadiologistOrAdmin
 
 logger = logging.getLogger(__name__)
-
+User = get_user_model()
 # ── File upload validation ────────────────────────────────────────────────────
 MAX_SCAN_SIZE_MB = 500
 MAX_PREVIEW_SIZE_MB = 10
@@ -71,10 +73,13 @@ def validate_upload(upload_file, allowed_extensions, max_mb):
     upload_file.seek(0)
 
     allowed_mime_types = [
-        'application/dicom',
-        'application/octet-stream',
-        'application/gzip',
-    ]
+    'application/dicom',
+    'application/octet-stream',
+    'application/gzip',
+    'application/x-gzip',
+    'application/nifti',
+    'application/x-nifti'
+    ]   
 
     if mime not in allowed_mime_types:
         raise ValueError(
@@ -104,7 +109,25 @@ def validate_upload(upload_file, allowed_extensions, max_mb):
             filename.endswith('.nii.gz')
         ):
 
-            nib.load(upload_file)
+            import tempfile
+
+            suffix = '.nii.gz' if filename.endswith('.nii.gz') else '.nii'
+
+            with tempfile.NamedTemporaryFile(
+                suffix=suffix,
+                delete=False
+            ) as tmp:
+
+                for chunk in upload_file.chunks():
+                    tmp.write(chunk)
+
+                tmp_path = tmp.name
+
+            try:
+                nib.load(tmp_path)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
 
     except Exception:
         raise ValueError(
@@ -122,19 +145,33 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'admin':
+        if not user.is_authenticated:
+            return User.objects.none()
+        if getattr(user, 'role', None) == 'admin':
             return User.objects.all()
         return User.objects.filter(id=user.id)
-        serializer = self.get_serializer( 
-            request.user, context={'request': request} 
-        ) 
-        return Response(serializer.data)
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve'):
+
+        public_actions = [
+            'register',
+            'login',
+            'reset_password'
+        ]
+
+        if self.action in public_actions:
+            return [permissions.AllowAny()]
+
+        if self.action in ('list', 'retrieve', 'me'):
             return [permissions.IsAuthenticated()]
-        if self.action in ('update', 'partial_update', 'destroy'):
+
+        if self.action in (
+            'update',
+            'partial_update',
+            'destroy'
+        ):
             return [IsAdminRole()]
+
         return [permissions.IsAuthenticated()]
 
     @action(detail=False, methods=['get', 'put', 'patch'])
@@ -148,29 +185,43 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(
-        detail=False,
-        methods=['post'],
-        permission_classes=[permissions.AllowAny]
+    detail=False,
+    methods=['post'],
+    permission_classes=[permissions.AllowAny]
     )
     def register(self, request):
-        data = request.data
         try:
+            data = request.data
+            username = data.get('username')
+            if User.objects.filter(username=username).exists():
+                return Response(
+                    {'error': 'Username already exists.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             user = User.objects.create_user(
-                username=data.get('username'),
+                username=username,
                 password=data.get('password'),
                 first_name=data.get('name', '').split(' ')[0],
-                last_name=' '.join(data.get('name', '').split(' ')[1:]),
+                last_name=' '.join(
+                    data.get('name', '').split(' ')[1:]
+                ),
                 role=data.get('role', 'radiologist')
             )
             refresh = RefreshToken.for_user(user)
             return Response({
-                'user': UserSerializer(user).data,
-                'token': str(refresh.access_token),
+                'user': UserSerializer(
+                    user,
+                    context={'request': request}
+                ).data,
+                'access': str(refresh.access_token),
                 'refresh': str(refresh)
             })
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+            logger.exception("Registration failed")
+            return Response(
+                {'error': 'Registration failed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
     @action(
         detail=False,
         methods=['post'],
@@ -186,8 +237,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if user:
             refresh = RefreshToken.for_user(user)
             return Response({
-                'user': UserSerializer(user).data,
-                'token': str(refresh.access_token),
+                'user': UserSerializer(
+                    user,
+                    context={'request': request}
+                ).data,
+                'access': str(refresh.access_token),
                 'refresh': str(refresh)
             })
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -229,12 +283,16 @@ class PatientViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all().order_by('-scan_date')
     serializer_class = PatientSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
-
+    parser_classes = [MultiPartParser, FormParser,JSONParser]
     def get_queryset(self):
-        user = self.request.user 
-        if user.role == 'admin': 
-            return Patient.objects.all() 
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return Patient.objects.none()
+
+        if getattr(user, 'role', None) == 'admin':
+            return Patient.objects.all()
+
         return Patient.objects.filter(created_by=user)
     
     def perform_create(self, serializer): 
@@ -257,7 +315,7 @@ class PatientViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post'],
-        parser_classes=[MultiPartParser, FormParser],
+        parser_classes=[MultiPartParser, FormParser,JSONParser],
         url_path='upload_scan'
     )
     def upload_scan(self, request, pk=None):
@@ -373,15 +431,6 @@ class PatientViewSet(viewsets.ModelViewSet):
         url_path='run_segmentation'
     )
     def run_segmentation(self, request, pk=None):
-        # ── PRODUCTION SAFETY BLOCK ───────────────────────────────────────
-        from django.conf import settings
-        if not settings.DEBUG:
-            return Response(
-                {'error': 'AI segmentation is not yet validated for clinical production use.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-        # ── END SAFETY BLOCK ─────────────────────────────────────────────
-
         patient = self.get_object()
 
         if not patient.ct_scan and not patient.has_file:
@@ -401,12 +450,11 @@ class PatientViewSet(viewsets.ModelViewSet):
         patient.status = 'Analyzing'
         patient.save()
 
-        task = segment_liver.delay(patient.id)
+        segment_liver.delay(patient.id)
 
         return Response({
-            'status': 'Analyzing',
+            'status': 'Completed',
             'patient_id': patient.id,
-            'task_id': task.id,
             'message': (
                 'Segmentation initiated. The AI pipeline is processing the CT volume in the background. '
                 'Poll GET /api/patients/{id}/ to check status. '

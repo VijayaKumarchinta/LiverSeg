@@ -5,7 +5,7 @@ import { useAppState } from '../../composables/useAppState'
 import api from '../../api'
 import {
   UploadCloud, FileText, CheckCircle2, Loader2, AlertCircle,
-  X, ShieldCheck, ChevronRight, File, Database, Zap, Play, RotateCcw,
+  X, ShieldCheck, ChevronRight, Database, Zap, Play, RotateCcw,
   ChevronLeft, BrainCircuit, Activity, Sliders, Layers, Award, CheckSquare, FileSignature
 } from 'lucide-vue-next'
 import CTViewer from '../../components/CTViewer.vue'
@@ -15,7 +15,6 @@ import MetricsPanel from '../../components/MetricsPanel.vue'
 const router = useRouter()
 const {
   uploadQueue,
-  simulateUpload,
   realUpload,
   patients,
   activePatient,
@@ -102,16 +101,24 @@ const processFiles = async (files) => {
       continue
     }
 
-    if (activePatient.value) {
-      // Real upload: send actual file bytes to backend
-      try {
-        await realUpload(file, activePatient.value.id)
-      } catch (err) {
-        uploadError.value = err.response?.data?.error || 'Upload failed. Please try again.'
-      }
-    } else {
-      // No patient selected — use demo simulation
-      simulateUpload(file.name, (file.size / 1048576).toFixed(1) + ' MB', type)
+    if (!activePatient.value) {
+      uploadError.value =
+        'Please select a patient before uploading a scan.'
+      return
+    }
+
+    try {
+      await realUpload(
+        file,
+        activePatient.value.id
+      )
+    }
+    catch(error) {
+
+      uploadError.value =
+        error.response?.data?.error ||
+        'Upload failed'
+
     }
   }
 }
@@ -341,27 +348,7 @@ const navigateToStep = (stepId) => {
             </span>
             <span v-else class="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">
               <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-              Demo mode — select a patient above to enable real upload
-            </span>
-          </div>
-
-          <!-- Shortcuts -->
-          <div class="space-y-2">
-            <div class="text-[9px] font-bold uppercase text-slate-400">Sandbox Sandbox Scan Loaders:</div>
-            <div class="flex flex-wrap gap-2.5">
-              <button @click="simulateUpload('CT_Liver_Portal.nii.gz','48.2 MB','nifti')"
-                class="clinical-btn-secondary py-2 px-4 rounded-xl text-[10px] font-bold active-shrink flex items-center gap-1.5">
-                <File class="w-3.5 h-3.5 text-teal-655" /> Ingest CT_Liver_Portal.nii.gz
-              </button>
-              <button @click="simulateUpload('CT_ABDOMEN_CASE.dcm','84.1 MB','dicom')"
-                class="clinical-btn-secondary py-2 px-4 rounded-xl text-[10px] font-bold active-shrink flex items-center gap-1.5">
-                <File class="w-3.5 h-3.5 text-sky-655" /> Ingest CT_ABDOMEN_CASE.dcm
-              </button>
-              <button @click="simulateUpload('Radiology_Report.pdf','2.4 MB','pdf')"
-                class="clinical-btn-secondary py-2 px-4 rounded-xl text-[10px] font-bold active-shrink flex items-center gap-1.5">
-                <File class="w-3.5 h-3.5 text-slate-655" /> Ingest Radiology_Report.pdf
-              </button>
-            </div>
+                Select a patient before uploading.            </span>
           </div>
         </div>
 
@@ -428,44 +415,6 @@ const navigateToStep = (stepId) => {
               <div class="text-xs font-black text-slate-800 mt-0.5">{{ activePatient?.scanDate?.substring(0, 10) }} ({{ activePatient?.modality }})</div>
             </div>
           </div>
-
-          <!-- DICOM Header details table -->
-          <div class="space-y-2">
-            <div class="text-[10px] font-black uppercase text-slate-400 tracking-wider">DICOM Tag Header Check:</div>
-            <div class="overflow-hidden border border-slate-200/60 rounded-xl bg-white/40">
-              <table class="w-full text-left border-collapse text-[10px] font-semibold text-slate-600">
-                <thead>
-                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-450 font-bold uppercase text-[8px] tracking-wider">
-                    <th class="px-4 py-2">Tag Address</th>
-                    <th class="px-4 py-2">Metadata Tag Name</th>
-                    <th class="px-4 py-2">Value</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 font-mono">
-                  <tr>
-                    <td class="px-4 py-2 text-slate-400">(0008,0060)</td>
-                    <td class="px-4 py-2">Modality</td>
-                    <td class="px-4 py-2 text-slate-800 font-bold">CT</td>
-                  </tr>
-                  <tr>
-                    <td class="px-4 py-2 text-slate-400">(0018,0050)</td>
-                    <td class="px-4 py-2">Slice Thickness</td>
-                    <td class="px-4 py-2 text-slate-800 font-bold">1.0 mm</td>
-                  </tr>
-                  <tr>
-                    <td class="px-4 py-2 text-slate-400">(0028,0030)</td>
-                    <td class="px-4 py-2">Pixel Spacing</td>
-                    <td class="px-4 py-2 text-slate-800 font-bold">[0.72, 0.72] mm</td>
-                  </tr>
-                  <tr>
-                    <td class="px-4 py-2 text-slate-400">(0018,5100)</td>
-                    <td class="px-4 py-2">Patient Position</td>
-                    <td class="px-4 py-2 text-slate-800 font-bold">FFS (Feet First Supine)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
 
         <div class="lg:col-span-5 frosted-glass-panel p-6 flex flex-col justify-between space-y-6">
@@ -476,13 +425,13 @@ const navigateToStep = (stepId) => {
             <div class="space-y-2">
               <h3 class="font-black text-slate-900 text-base leading-snug tracking-tight">AI Segmentation Pipeline Ready</h3>
               <p class="text-xs text-slate-500 leading-relaxed font-semibold">
-                The DICOM scan series has been normalized to target resolutions. The active U-Net segmentation weights can now be evaluated on the axial slices.
+                The DICOM scan series has been normalized to target resolutions. The backend liver segmentation pipeline can now be triggered.
               </p>
             </div>
 
             <div class="p-3.5 bg-sky-50/65 border border-sky-100 rounded-xl flex items-start gap-2.5 text-[11px] text-sky-850 font-semibold leading-relaxed">
               <Activity class="w-4 h-4 text-sky-600 mt-0.5 flex-shrink-0" />
-              <span>Pipeline uses active attention gates to isolate liver lobes, masking extraneous anatomy for precise measurements.</span>
+              <span>Pipeline processes uploaded NIFTI volumes and creates an overlayed mask to isolate liver lobes, masking extraneous anatomy for precise measurements.</span>
             </div>
           </div>
 
@@ -498,7 +447,7 @@ const navigateToStep = (stepId) => {
       <!-- STEP 3: AI Processing -->
       <div v-if="currentStep === 3" class="frosted-glass-panel p-6 space-y-6 max-w-4xl mx-auto">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 class="text-sm font-black text-slate-850 flex items-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-teal-550" /> MONAI 3D Inference Active</h3>
+          <h3 class="text-sm font-black text-slate-850 flex items-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-teal-550" />Volumetric Segmentation Pipeline</h3>
           <span class="text-[9.5px] font-bold text-slate-400 bg-slate-50 border px-2 py-0.5 rounded">GPU Slot Engaged</span>
         </div>
 
@@ -565,22 +514,22 @@ const navigateToStep = (stepId) => {
 
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="p-5 rounded-2xl border border-teal-200/50 bg-teal-50/20 text-center space-y-1 shadow-sm">
-              <div class="text-3xl font-black text-teal-700">{{ activePatient?.metrics?.dice || '95.8%' }}</div>
+              <div class="text-3xl font-black text-teal-700">{{ activePatient?.metrics?.dice ?? 'N/A' }}</div>
               <div class="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Dice Coefficient</div>
               <div class="text-[8px] text-teal-600 font-semibold leading-normal">Volumetric overlap index</div>
             </div>
             <div class="p-5 rounded-2xl border border-slate-200/60 bg-white/45 text-center space-y-1 shadow-sm">
-              <div class="text-3xl font-black text-slate-800">91.8%</div>
+              <div class="text-3xl font-black text-slate-800">{{ activePatient?.metrics?.iou ?? 'N/A' }}</div>
               <div class="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Mean IoU</div>
               <div class="text-[8px] text-slate-400 font-semibold leading-normal">Intersection over Union</div>
             </div>
             <div class="p-5 rounded-2xl border border-slate-200/60 bg-white/45 text-center space-y-1 shadow-sm">
-              <div class="text-3xl font-black text-slate-800">96.4%</div>
+              <div class="text-3xl font-black text-slate-800">{{ activePatient?.metrics?.precision ?? 'N/A' }}</div>
               <div class="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Precision</div>
               <div class="text-[8px] text-slate-400 font-semibold leading-normal">Voxel false positive suppression</div>
             </div>
             <div class="p-5 rounded-2xl border border-slate-200/60 bg-white/45 text-center space-y-1 shadow-sm">
-              <div class="text-3xl font-black text-slate-800">95.2%</div>
+              <div class="text-3xl font-black text-slate-800">{{ activePatient?.metrics?.recall ?? 'N/A' }}</div>
               <div class="text-[9px] text-slate-500 uppercase tracking-wider font-bold">Recall</div>
               <div class="text-[8px] text-slate-400 font-semibold leading-normal">Target boundary sensitivity</div>
             </div>
@@ -589,7 +538,7 @@ const navigateToStep = (stepId) => {
           <div class="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-2 text-xs font-semibold text-slate-600">
             <div class="text-slate-800 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5"><Sliders class="w-3.5 h-3.5 text-teal-600" /> Derived Tissue Volumetrics:</div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1 font-medium">
-              <div><span class="text-slate-450">Liver Volume:</span> <span class="text-slate-800 font-bold">{{ activePatient?.metrics?.volume || '1418 cc' }}</span></div>
+              <div><span class="text-slate-450">Liver Volume:</span> <span class="text-slate-800 font-bold">{{ activePatient?.metrics?.volume ?? 'N/A' }} cm³ </span></div>
               <div><span class="text-slate-455 text-slate-400">Lesions Found:</span> <span :class="activePatient?.hasLesions ? 'text-rose-600 font-bold' : 'text-slate-800 font-bold'">{{ activePatient?.hasLesions ? 'Yes' : 'No' }}</span></div>
               <div><span class="text-slate-455 text-slate-400">Lesion Volume:</span> <span class="text-slate-800 font-bold">{{ activePatient?.lesionVolume || '—' }}</span></div>
               <div><span class="text-slate-455 text-slate-400">Resolution spacing:</span> <span class="text-slate-800 font-mono font-bold">1.0mm isotropic</span></div>

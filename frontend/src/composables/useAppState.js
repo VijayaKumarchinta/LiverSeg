@@ -143,13 +143,19 @@ export function useAppState() {
       uploadQueue.value[qIndex].status = 'completed'
       uploadQueue.value[qIndex].progress = 100
 
-      // Update the patient record in our local state
-      if (res.data && res.data.patient) {
-        const updatedPatient = mapPatientToCamelCase(res.data.patient)
-        const pIndex = patients.value.findIndex(p => p.id === patientId)
-        if (pIndex !== -1) {
-          patients.value[pIndex] = { ...patients.value[pIndex], ...updatedPatient }
-        }
+      const patientResponse =
+        await api.get(`/patients/${patientId}/`)
+
+      const updatedPatient =
+        mapPatientToCamelCase(patientResponse.data)
+
+      const pIndex =
+        patients.value.findIndex(
+          p => p.id === patientId
+        )
+
+      if (pIndex !== -1) {
+        patients.value[pIndex] = updatedPatient
       }
 
       activities.value.unshift({
@@ -170,87 +176,6 @@ export function useAppState() {
   }
 
   // ── DEMO fallback: simulate upload with fake progress (no real file) ─────
-  const simulateUpload = (filename, size, type, metadata = null) => {
-    uploadQueue.value.push({ filename, size, type, progress: 0, status: 'uploading' })
-    const qIndex = uploadQueue.value.length - 1
-
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += Math.random() * 20
-      if (progress > 100) progress = 100
-      uploadQueue.value[qIndex].progress = Math.floor(progress)
-
-      if (progress >= 100) {
-        clearInterval(interval)
-        uploadQueue.value[qIndex].status = 'completed'
-
-        activities.value.unshift({
-          id: Date.now(),
-          type: 'success',
-          action: 'Upload Completed (Demo)',
-          details: filename,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        })
-        saveActivities()
-
-        // If an active patient exists and does not have a scan file, associate it
-        if (activePatient.value && !activePatient.value.hasFile) {
-          const pIndex = patients.value.findIndex(p => p.id === activePatient.value.id)
-          if (pIndex !== -1) {
-            patients.value[pIndex].hasFile = true
-            patients.value[pIndex].slices = generateDemoSlices()
-
-            api.patch(`/patients/${activePatient.value.id}/`, {
-              has_file: true,
-              slices: patients.value[pIndex].slices.map(s => ({
-                slice_index: s.sliceIndex,
-                liver_size: s.liverSize,
-                liver_x: s.liverX,
-                liver_y: s.liverY,
-                lesion_size: s.lesionSize,
-                lesion_x: s.lesionX,
-                lesion_y: s.lesionY
-              }))
-            }).catch(err => console.error('Error updating patient has_file:', err))
-            return
-          }
-        }
-
-        // Otherwise create a new patient case
-        const newId = metadata?.id || `PT-${Math.floor(Math.random() * 9000) + 1000}-X`
-        const slices = generateDemoSlices()
-        const newPatient = {
-          id: newId,
-          name: metadata?.name || 'Anonymous Patient',
-          gender: metadata?.gender || 'Unknown',
-          age: metadata?.age || 0,
-          dob: metadata?.dob || '2026-01-01',
-          modality: metadata?.modality || (type === 'dicom' ? 'CT' : 'MRI'),
-          status: 'Ready',
-          has_file: true,
-          has_lesions: false,
-          lesion_volume: '—',
-          metrics: { dice: '—', volume: '—' },
-          slices: slices.map(s => ({
-            slice_index: s.sliceIndex,
-            liver_size: s.liverSize,
-            liver_x: s.liverX,
-            liver_y: s.liverY,
-            lesion_size: s.lesionSize,
-            lesion_x: s.lesionX,
-            lesion_y: s.lesionY
-          }))
-        }
-
-        api.post('/patients/', newPatient).then(res => {
-          if (res.data) {
-            patients.value.unshift(mapPatientToCamelCase(res.data))
-            activePatientId.value = newId
-          }
-        }).catch(err => console.error('Error saving patient to backend:', err))
-      }
-    }, 400)
-  }
 
   // ── REAL segmentation: calls backend API instead of fake timer ───────────
   const runSegmentation = async (id) => {
@@ -268,63 +193,39 @@ export function useAppState() {
       // Call the real backend endpoint
       await api.post(`/patients/${id}/run_segmentation/`)
       inferenceStage.value = 'Preprocessing volume data...'
+      const interval = setInterval(
+        async () => {
 
-      // Simulate progress updates while backend processes
-      // (Replace with WebSocket or polling in production)
-      let progress = 0
-      const interval = setInterval(async () => {
-        progress += Math.random() * 12
-        if (progress > 100) progress = 100
-        inferenceProgress.value = Math.floor(progress)
+          const patientResponse =
+            await api.get(`/patients/${id}/`)
 
-        if (progress < 25) inferenceStage.value = 'Preprocessing volume...'
-        else if (progress < 55) inferenceStage.value = 'Running 3D U-Net Inference...'
-        else if (progress < 80) inferenceStage.value = 'Extracting liver mesh & metrics...'
-        else if (progress < 95) inferenceStage.value = 'Generating segmentation mask...'
-        else inferenceStage.value = 'Finalizing results...'
+          const updatedPatient =
+            mapPatientToCamelCase(
+              patientResponse.data
+            )
 
-        if (progress >= 100) {
-          clearInterval(interval)
+          patients.value[pIndex] =
+            updatedPatient
 
-          // Mark as completed with demo metrics
-          const completedMetrics = { dice: '94.8%', volume: '1520 cc', iou: '91.8%', confidence: '94.5%', processingTime: '3.24s' }
+          if (
+            updatedPatient.status ===
+            'Completed'
+          ) {
 
-          await api.patch(`/patients/${id}/`, {
-            status: 'Completed',
-            metrics: completedMetrics,
-            has_lesions: true,
-            lesion_volume: '12.4 cc',
-            slices: generateDemoSlices().map(s => ({
-              slice_index: s.sliceIndex,
-              liver_size: s.liverSize,
-              liver_x: s.liverX,
-              liver_y: s.liverY,
-              lesion_size: s.lesionSize,
-              lesion_x: s.lesionX,
-              lesion_y: s.lesionY
-            }))
-          }).catch(err => console.error(err))
+            clearInterval(interval)
 
-          patients.value[pIndex].status = 'Completed'
-          patients.value[pIndex].metrics = completedMetrics
-          patients.value[pIndex].hasLesions = true
-          patients.value[pIndex].lesionVolume = '12.4 cc'
-          if (!patients.value[pIndex].slices?.length) {
-            patients.value[pIndex].slices = generateDemoSlices()
+            inferenceProgress.value = 100
+
+            inferenceStage.value =
+              'Completed'
+
+            isInferenceRunning.value =
+              false
           }
 
-          isInferenceRunning.value = false
-
-          activities.value.unshift({
-            id: Date.now(),
-            type: 'success',
-            action: 'AI Analysis Completed',
-            details: `Patient ${id}`,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })
-          saveActivities()
-        }
-      }, 500)
+        },
+        2000
+      )
     } catch (error) {
       console.error('Segmentation API error:', error.response?.data || error.message)
       // Fallback to local demo simulation if backend call fails
@@ -347,7 +248,6 @@ export function useAppState() {
     inferenceStage,
     uploadQueue,
     realUpload,
-    simulateUpload,
     pacsConfig,
     fetchPacsConfig,
     updatePacs
@@ -362,21 +262,4 @@ function detectFileType(filename) {
   if (f.endsWith('.nii') || f.endsWith('.nii.gz')) return 'nifti'
   if (f.endsWith('.pdf')) return 'pdf'
   return 'unknown'
-}
-
-function generateDemoSlices() {
-  return Array(20).fill(0).map((_, idx) => {
-    const xShift = Math.sin(idx / 3) * 6
-    const yShift = Math.cos(idx / 2.5) * 5
-    const hasLesion = idx >= 8 && idx <= 13
-    return {
-      sliceIndex: idx,
-      liverSize: idx < 3 || idx > 17 ? 0 : (10 - Math.abs(10 - idx)) * 4 + 30,
-      liverX: xShift,
-      liverY: yShift,
-      lesionSize: hasLesion ? 0.35 + Math.sin(idx) * 0.1 : 0,
-      lesionX: hasLesion ? xShift + 5 : 0,
-      lesionY: hasLesion ? yShift - 8 : 0
-    }
-  })
 }
