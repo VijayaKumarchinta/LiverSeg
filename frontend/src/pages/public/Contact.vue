@@ -37,20 +37,11 @@ import { Send, MapPin, Mail, PhoneCall } from 'lucide-vue-next'
           <div class="space-y-4 text-xs font-semibold text-slate-650 text-slate-600">
             <div class="flex items-center gap-3.5">
               <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-650 flex items-center justify-center border border-teal-100 shadow-sm">
-                <MapPin class="w-4 h-4" />
-              </div>
-              <div>
-                <p class="text-[9px] font-bold uppercase text-slate-400">Location</p>
-                <p class="text-slate-800 font-bold">Medical Center Innovation Hub, SF</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3.5">
-              <div class="w-9 h-9 rounded-xl bg-teal-50 text-teal-650 flex items-center justify-center border border-teal-100 shadow-sm">
                 <Mail class="w-4 h-4" />
               </div>
               <div>
                 <p class="text-[9px] font-bold uppercase text-slate-400">Email</p>
-                <p class="text-slate-800 font-bold">support@liverseg.ai</p>
+                <p class="text-slate-800 font-bold">[EMAIL_ADDRESS]</p>
               </div>
             </div>
             <div class="flex items-center gap-3.5">
@@ -59,7 +50,7 @@ import { Send, MapPin, Mail, PhoneCall } from 'lucide-vue-next'
               </div>
               <div>
                 <p class="text-[9px] font-bold uppercase text-slate-400">Phone</p>
-                <p class="text-slate-800 font-bold">+1 (800) 555-LIVER</p>
+                <p class="text-slate-800 font-bold">+91-8187023747</p>
               </div>
             </div>
           </div>

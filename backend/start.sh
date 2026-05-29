@@ -1,19 +1,17 @@
-#!/bin/bash
+#!/bin/sh
+
 set -e
 
-echo "Applying database migrations..."
+echo "Applying migrations..."
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "Starting Gunicorn server..."
+echo "Starting Gunicorn..."
+
 exec gunicorn \
-  --bind 0.0.0.0:${PORT:-8000} \
-  --workers ${GUNICORN_WORKERS:-4} \
-  --worker-class gthread \
-  --threads 2 \
-  --timeout 120 \
-  --access-logfile - \
-  --error-logfile - \
-  core.wsgi:application
+    --bind 0.0.0.0:8000 \
+    --workers 4 \
+    --timeout 300 \
+    core.wsgi:application

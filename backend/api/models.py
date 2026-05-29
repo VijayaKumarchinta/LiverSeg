@@ -80,7 +80,13 @@ class Patient(models.Model):
 
     # SVG viewer slice data (kept for backward compatibility with Analysis.vue)
     slices = models.JSONField(default=list)
-
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE, 
+        related_name='patients', 
+        null=True, 
+        blank=True 
+    )
     # ── Medical imaging files ──────────────────────────────────────────────
     # Raw CT scan file (.nii, .nii.gz, .dcm)
     ct_scan = models.FileField(
@@ -105,6 +111,6 @@ class Patient(models.Model):
         blank=True,
         help_text='CT slice preview thumbnail for UI display'
     )
-
+    
     def __str__(self):
         return self.name

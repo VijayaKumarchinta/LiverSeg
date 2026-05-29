@@ -8,6 +8,7 @@ import os
 import platform
 from dotenv import load_dotenv
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,18 +16,46 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / '.env')
 
 # ── Security ──────────────────────────────────────────────────────────────────
+# ── Security ──────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY')
+
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable must be set.")
-if not DEBUG: 
-    SECURE_SSL_REDIRECT = True 
-    SESSION_COOKIE_SECURE = True 
+
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        'ALLOWED_HOSTS',
+        'localhost,127.0.0.1'
+    ).split(',')
+]
+
+# Production Security
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-else: 
-    SECURE_SSL_REDIRECT = False 
-    SESSION_COOKIE_SECURE = False 
+
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+
+    SESSION_COOKIE_SAMESITE = 'Strict'
+
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -82,8 +111,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # ── Database ──────────────────────────────────────────────────────────────────
 _db_options = {}
-if not DEBUG:
-    _db_options['sslmode'] = 'require'
+
+# Enable SSL only outside Docker/local development
+if not DEBUG and os.getenv("DB_SSL", "False").lower() == "true":
+    _db_options["sslmode"] = "require"
 
 DATABASES = {
     'default': {
@@ -94,6 +125,7 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
         'PORT': os.getenv('DB_PORT', '5432'),
         'CONN_MAX_AGE': 60,
+        'OPTIONS': _db_options,
     }
 }
 
@@ -117,6 +149,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'auth': '10/min',
         'anon': '20/hour',
         'user': '500/hour',
         'login': '5/minute',
@@ -133,27 +166,15 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# ── HTTPS / Security Headers (production only) ────────────────────────────────
-if not DEBUG:
-    SECURE_SSL_REDIRECT = False
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Strict'
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
-
 # ── Password validation ───────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length':  12,
+        }
+    },
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -172,8 +193,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ── Session ───────────────────────────────────────────────────────────────────
-SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
-
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')

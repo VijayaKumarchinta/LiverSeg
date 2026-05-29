@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 # Build using production env vars
-RUN npm run build --mode production
+RUN npm run build
 
 # Production stage
 FROM nginx:stable-alpine AS production-stage

@@ -58,10 +58,11 @@ class PatientSerializer(serializers.ModelSerializer):
 
         return None
         
-    def get_preview_image_url(self, obj):
-        if obj.preview_image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.preview_image.url)
-            return obj.preview_image.url
+    def get_preview_image_url(self, obj): 
+        if obj.preview_image: 
+            request = self.context.get('request') 
+            if request: 
+                return request.build_absolute_uri( 
+                    f"/media/{obj.preview_image.name}"
+                ) 
         return None

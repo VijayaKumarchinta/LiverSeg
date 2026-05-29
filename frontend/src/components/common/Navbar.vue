@@ -78,13 +78,6 @@ const navLinks = [
           </router-link>
           
           <div class="h-5 w-px bg-slate-200 mx-3"></div>
-          
-          <router-link 
-            to="/login"
-            class="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-950 transition-colors mr-2 active-shrink"
-          >
-            Sign In
-          </router-link>
 
           <router-link 
             to="/app" 

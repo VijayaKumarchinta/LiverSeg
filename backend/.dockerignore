@@ -10,3 +10,10 @@ db.sqlite3
 media/
 staticfiles/
 .vscode/
+
+*.zip
+*.nii
+*.nii.gz
+*.dcm
+.git
+.gitignore

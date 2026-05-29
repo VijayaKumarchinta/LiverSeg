@@ -2,6 +2,8 @@ import logging
 import os
 import nibabel as nib
 import numpy as np
+import magic
+import pydicom
 from PIL import Image
 from io import BytesIO
 
@@ -26,26 +28,107 @@ MAX_SCAN_SIZE_MB = 500
 MAX_PREVIEW_SIZE_MB = 10
 
 def validate_upload(upload_file, allowed_extensions, max_mb):
-    """Validate file size and extension before saving."""
+    """
+    Validate uploaded medical imaging files.
+
+    Checks:
+    - file size
+    - extension
+    - MIME/content type
+    """
+
+    # ─────────────────────────────────────────────
+    # FILE SIZE VALIDATION
+    # ─────────────────────────────────────────────
     if upload_file.size > max_mb * 1024 * 1024:
-        raise ValueError(f"File size exceeds the {max_mb} MB limit.")
+        raise ValueError(
+            f"File size exceeds the {max_mb} MB limit."
+        )
+
+    # ─────────────────────────────────────────────
+    # EXTENSION VALIDATION
+    # ─────────────────────────────────────────────
     filename = upload_file.name.lower()
-    if not any(filename.endswith(ext) for ext in allowed_extensions):
-        raise ValueError(f"Unsupported file type. Allowed extensions: {', '.join(allowed_extensions)}")
+    if not any(
+        filename.endswith(ext)
+        for ext in allowed_extensions
+    ):
+        raise ValueError(
+            f"Unsupported file type. "
+            f"Allowed extensions: "
+            f"{', '.join(allowed_extensions)}"
+        )
+
+    # ─────────────────────────────────────────────
+    # MIME TYPE VALIDATION
+    # ─────────────────────────────────────────────
+    mime = magic.from_buffer(
+        upload_file.read(2048),
+        mime=True
+    )
+
+    # Reset cursor after reading
+    upload_file.seek(0)
+
+    allowed_mime_types = [
+        'application/dicom',
+        'application/octet-stream',
+        'application/gzip',
+    ]
+
+    if mime not in allowed_mime_types:
+        raise ValueError(
+            f"Invalid file content type: {mime}"
+        )
+
+    # ─────────────────────────────────────────────
+    # REAL DICOM / NIFTI STRUCTURE VALIDATION
+    # ─────────────────────────────────────────────
+
+    try:
+
+        # Reset pointer before parsing
+        upload_file.seek(0)
+
+        # DICOM validation
+        if filename.endswith('.dcm'):
+
+            pydicom.dcmread(
+                upload_file,
+                stop_before_pixels=True
+            )
+
+        # NIfTI validation
+        elif (
+            filename.endswith('.nii') or
+            filename.endswith('.nii.gz')
+        ):
+
+            nib.load(upload_file)
+
+    except Exception:
+        raise ValueError(
+            "Invalid or corrupted medical imaging file."
+        )
+    upload_file.seek(0)
+    return True
+
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRole]
 
     def get_queryset(self):
-
         user = self.request.user
         if user.role == 'admin':
             return User.objects.all()
-
         return User.objects.filter(id=user.id)
+        serializer = self.get_serializer( 
+            request.user, context={'request': request} 
+        ) 
+        return Response(serializer.data)
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -91,7 +174,7 @@ class UserViewSet(viewsets.ModelViewSet):
         throttle_classes=[ScopedRateThrottle],
     )
     def login(self, request):
-        self.throttle_scope = 'login'
+        self.throttle_scope = 'auth'
         username = request.data.get('username')
         password = request.data.get('password')
 
@@ -107,7 +190,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def logout(self, request):
-        """Blacklist the refresh token to invalidate the session."""
         try:
             token = RefreshToken(request.data.get('refresh'))
             token.blacklist()
@@ -143,7 +225,16 @@ class PatientViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all().order_by('-scan_date')
     serializer_class = PatientSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        user = self.request.user 
+        if user.role == 'admin': 
+            return Patient.objects.all() 
+        return Patient.objects.filter(created_by=user)
+    
+    def perform_create(self, serializer): 
+        serializer.save(created_by=self.request.user)
 
     def get_permissions(self):
         if self.action in ('run_segmentation', 'upload_scan', 'upload_mask',
@@ -157,8 +248,7 @@ class PatientViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-    if not settings.DEBUG: return Response( { "error": ( "AI segmentation is not validated " "for clinical diagnostic use." ) }, status=status.HTTP_503_SERVICE_UNAVAILABLE )
-
+        
     # ── POST /api/patients/{id}/upload_scan/ ─────────────────────────────
     @action(
         detail=True,
@@ -398,21 +488,72 @@ class PatientViewSet(viewsets.ModelViewSet):
 
 # ── Protected Media Serving ───────────────────────────────────────────────────
 def protected_media(request, path):
-    """Serve media files only to authenticated users (JWT-aware)."""
+    """
+    Serve media files only to authorized users.
+
+    Security checks:
+    - JWT authentication required
+    - Admins can access all files
+    - Non-admins can only access files
+      linked to their own patients
+    """
+
     from rest_framework_simplejwt.authentication import JWTAuthentication
     from rest_framework.exceptions import AuthenticationFailed
     from django.conf import settings as django_settings
+    from django.db import models
 
     auth = JWTAuthentication()
+
     try:
         result = auth.authenticate(request)
+
         if result is None:
             raise AuthenticationFailed
-    except Exception:
-        return JsonResponse({'error': 'Authentication required.'}, status=401)
 
-    full_path = os.path.join(django_settings.MEDIA_ROOT, path)
+        user, _ = result
+
+    except Exception:
+        return JsonResponse(
+            {'error': 'Authentication required.'},
+            status=401
+        )
+
+    # ─────────────────────────────────────────────
+    # BUILD ABSOLUTE FILE PATH
+    # ─────────────────────────────────────────────
+    full_path = os.path.join(
+        django_settings.MEDIA_ROOT,
+        path
+    )
+
     if not os.path.exists(full_path):
         raise Http404
 
+    # ─────────────────────────────────────────────
+    # ADMINS CAN ACCESS EVERYTHING
+    # ─────────────────────────────────────────────
+    if user.role == 'admin':
+        return FileResponse(open(full_path, 'rb'))
+
+    # ─────────────────────────────────────────────
+    # VERIFY FILE OWNERSHIP
+    # ─────────────────────────────────────────────
+    patient = Patient.objects.filter(
+        created_by=user
+    ).filter(
+        models.Q(ct_scan=path) |
+        models.Q(liver_mask=path) |
+        models.Q(preview_image=path)
+    ).first()
+
+    if not patient:
+        return JsonResponse(
+            {'error': 'Access denied.'},
+            status=403
+        )
+
+    # ─────────────────────────────────────────────
+    # AUTHORIZED FILE ACCESS
+    # ─────────────────────────────────────────────
     return FileResponse(open(full_path, 'rb'))

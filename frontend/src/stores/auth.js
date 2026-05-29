@@ -1,13 +1,40 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../api'
+import { jwtDecode } from 'jwt-decode'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref(localStorage.getItem('token') || null)
+  const access = ref(localStorage.getItem('access') || null)
+  const refresh = ref(localStorage.getItem('refresh') || null)
+
   const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
-  
-  const isAuthenticated = computed(() => !!token.value)
-  const userRole = computed(() => user.value?.role || 'radiologist')
+
+  function isTokenExpired(token) {
+    try {
+      const decoded = jwtDecode(token)
+
+      if (!decoded.exp) {
+        return true
+      }
+
+      return decoded.exp * 1000 < Date.now()
+
+    } catch {
+      return true
+    }
+  }
+
+  if (!access.value || !refresh.value || isTokenExpired(refresh.value)) {
+    localStorage.removeItem('access')
+    localStorage.removeItem('refresh')
+    localStorage.removeItem('user')
+    access.value = null
+    refresh.value = null
+    user.value = null
+  }
+
+  const isAuthenticated = computed(() => !!access.value)
+  const userRole = computed(() => user.value?.role || null)
 
   const userName = computed(() => {
     if (!user.value) return ''
@@ -34,9 +61,11 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await api.post('/users/login/', { username, password })
       if (res.data) {
         const data = res.data
-        token.value = data.token
+        access.value = data.access
+        refresh.value = data.refresh
         user.value = data.user
-        localStorage.setItem('token', data.token)
+        localStorage.setItem('access', data.access)
+        localStorage.setItem('refresh', data.refresh)
         localStorage.setItem('user', JSON.stringify(data.user))
         return true
       }
@@ -51,9 +80,11 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await api.post('/users/register/', { name, username, hospital, role, password })
       if (res.data) {
         const data = res.data
-        token.value = data.token
+        access.value = data.access
+        refresh.value = data.refresh
         user.value = data.user
-        localStorage.setItem('token', data.token)
+        localStorage.setItem('access', data.access)
+        localStorage.setItem('refresh', data.refresh)
         localStorage.setItem('user', JSON.stringify(data.user))
         return true
       }
@@ -64,14 +95,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
-    token.value = null
+    access.value = null
+    refresh.value = null
     user.value = null
-    localStorage.removeItem('token')
+    localStorage.removeItem('access')
+    localStorage.removeItem('refresh')
     localStorage.removeItem('user')
   }
 
   return {
-    token,
+    access,
+    refresh,
     user,
     isAuthenticated,
     userRole,

@@ -1,27 +1,67 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' }
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api',
 })
 
-// Request interceptor — attach JWT token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-}, error => Promise.reject(error))
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access')
 
-// Response interceptor — handle 401s
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  return config
+})
+
 api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+  (response) => response,
+
+  async (error) => {
+
+    const originalRequest = error.config
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry
+    ) {
+
+      originalRequest._retry = true
+
+      try {
+
+        const refresh = localStorage.getItem('refresh')
+
+        const response = await axios.post(
+          'http://127.0.0.1:8000/api/token/refresh/',
+          { refresh }
+        )
+
+        const newAccess = response.data.access
+
+        localStorage.setItem('access', newAccess)
+
+        originalRequest.headers.Authorization =
+          `Bearer ${newAccess}`
+        if (error.response?.status === 403) {
+          console.error('Access denied.')
+        }
+        if (error.response?.status === 500) {
+          console.error('Internal server error.')
+        }
+        return api(originalRequest)
+
+      } catch (refreshError) {
+
+        localStorage.removeItem('access')
+        localStorage.removeItem('refresh')
+
+        window.location.href = '/login'
+
+        return Promise.reject(refreshError)
+      }
     }
+
     return Promise.reject(error)
   }
 )
